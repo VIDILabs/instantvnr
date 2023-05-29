@@ -1,0 +1,48 @@
+#usda 1.0
+
+def "scene" {
+    def "volume" {
+        string data_path = "configs/scene_chameleon.json"
+        # string data_path = "configs/scene_mechhand.json"
+    }
+    def "camera" {
+        # from = eye
+        float3 from = (
+            -1818.01,
+            2496.51,
+            -1875.73
+        )
+        # at = center
+        float3 at = (
+            790.71,
+            1057.9441,
+            926.1431
+        )
+        # up = up
+        float3 up = (
+            0.608985,
+            -0.313457,
+            -0.727943
+        )
+    }
+    def "light" {
+        def "ambient" {
+            def "first_light" {
+                float  intensity = 1
+                float3 color     = (1, 1, 1)
+            }
+        }
+        def "directional" {
+            def "first_light" {
+                float  intensity = 2
+                float3 direction = (0, -10, 0)
+                float3 color     = (1, 1, 1)
+            }
+            def "second_light" {
+                float  intensity = 2
+                float3 direction = (0, 10, 0)
+                float3 color     = (1, 1, 1)
+            }
+        }
+    }
+}

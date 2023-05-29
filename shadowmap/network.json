@@ -1,0 +1,59 @@
+{
+    "version": "DIVA",
+    "optimizer": {
+		"otype": "Ema",
+		"decay": 0.6,
+		"nested": {
+			"otype": "ExponentialDecay",
+			"decay_start": 2000,
+			"decay_interval": 1000,
+			"decay_base": 0.8,
+			"nested": {
+				"otype": "Adam",
+				"learning_rate": 1e-2,
+				"beta1": 0.9,
+				"beta2": 0.999,
+				"epsilon": 1e-8,
+				"l2_reg": 1e-6
+			}
+		}
+	},
+    "encoding": {
+        "otype": "HashGrid",
+        "n_levels": 8,
+        "n_features_per_level": 4,
+        "log2_hashmap_size": 15,
+        "base_resolution": 4
+    },
+    "network": {
+        "otype": "FullyFusedMLP",
+        "activation": "ReLU",
+        // "activation": "Sine",
+        // "activation": "Exponential",
+        // "activation": "Sigmoid",
+        // "activation": "Squareplus",
+        // "activation": "Softplus",
+        "n_neurons": 32,
+        "n_hidden_layers": 4,
+        "output_activation": "None"
+        // "output_activation": "ReLU"
+        // "output_activation": "Exponential"
+        // "output_activation": "Sigmoid"
+        // "output_activation": "Squareplus"
+        // "output_activation": "Softplus"
+    }
+    // "network": {
+    //     "otype": "CutlassMLP",
+    //     "activation": "Sine",
+    //     "output_activation": "None",
+    //     "n_neurons": 64,
+    //     "n_hidden_layers": 4
+    // }
+    // "network": {
+    //     "otype": "CutlassResNet",
+    //     "n_neurons": 64,
+    //     "n_blocks": 8,
+    //     "n_matrices_per_block": 4,
+    //     "activation": "Sine"
+    // }
+}

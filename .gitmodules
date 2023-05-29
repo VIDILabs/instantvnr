@@ -1,0 +1,3 @@
+[submodule "tcnn"]
+	path = tcnn
+	url = git@github.com:wilsonCernWq/tiny-cuda-nn.git
