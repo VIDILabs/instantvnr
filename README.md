@@ -2,12 +2,15 @@
 
 ### Qi Wu, David Bauer, Michael J. Doyle, and Kwan-Liu Ma
 
-[Project Page](https://wilsoncernwq.github.io/publication/arxiv-instant-vnr), 
+[Project Page](https://wilsoncernwq.github.io/publication/tvcg2023-instant-vnr), 
+[Github Page](https://github.com/VIDILabs/instantvnr), 
 [ArXiv](https://arxiv.org/abs/2207.11620)
 
 ### TODO
 
 - [ ] Complete & correct documentations
+- [ ] Provide a docker container
+- [ ] Test on multiple platforms
 
 ### Abstract
 
