@@ -1,0 +1,47 @@
+{
+    "optimizer": {
+		"otype": "ExponentialDecay",
+		"decay_start": 2000,
+		"decay_interval": 1000,
+		"decay_base": 0.99,
+		"nested": {
+			"otype": "Adam",
+			"learning_rate": 5e-3,
+			"beta1": 0.9,
+			"beta2": 0.999,
+			"epsilon": 1e-15,
+			"l2_reg": 1e-6
+		}
+	},
+    "loss": { 
+        "otype": "L1" 
+    },
+    "encoding": {
+        "otype": "HashGrid",
+        "n_levels": 8,
+        "n_features_per_level": 8,
+        "log2_hashmap_size": 19,
+        "base_resolution": 16
+    },
+    "network": {
+        "otype": "FullyFusedMLP",
+        "activation": "ReLU",
+        "n_neurons": 64,
+        "n_hidden_layers": 4,
+        "output_activation": "None"
+    }
+    // "network": {
+    //     "otype": "CutlassMLP",
+    //     "activation": "Sine",
+    //     "output_activation": "None",
+    //     "n_neurons": 64,
+    //     "n_hidden_layers": 4
+    // }
+    // "network": {
+    //     "otype": "CutlassResNet",
+    //     "n_neurons": 64,
+    //     "n_blocks": 8,
+    //     "n_matrices_per_block": 4,
+    //     "activation": "Sine"
+    // }
+}

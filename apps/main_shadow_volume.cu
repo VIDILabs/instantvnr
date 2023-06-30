@@ -154,8 +154,8 @@ public:
         for (auto& li : scene.lights) {
             if (li.type == scene::Light::DIRECTIONAL) {
                 lights.emplace_back(Light{
-                    .direction = li.directional.direction,
-                    .intensity = li.intensity
+                    /*.direction =*/ li.directional.direction,
+                    /*.intensity =*/ li.intensity
                 });
             }
         }

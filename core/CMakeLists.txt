@@ -158,7 +158,7 @@ target_link_libraries(${target} PUBLIC # intentionally keep these library public
   gdt util tfnmodule tiny-cuda-nn
 )
 
-if(TARGET openvkl::openvkl)
+if(TARGET openvkl::openvkl AND TARGET openvkl::testing)
   target_compile_definitions(${target} PRIVATE ENABLE_OPENVKL=1)
   target_link_libraries(${target} PRIVATE openvkl::openvkl openvkl::testing)
 endif()
