@@ -425,7 +425,7 @@ vnrRenderer vnrCreateRenderer(vnrVolume v)
   if (self->volume->isNetwork()) {
     auto& neural = std::dynamic_pointer_cast<NeuralVolumeContext>(self->volume)->neural;
 
-    std::cout << "INF MC " <<  neural.get_macrocell_value_range() << std::endl;
+    // std::cout << "INF MC " <<  neural.get_macrocell_value_range() << std::endl;
     renderer.set_scene(neural.texture(), 
                        neural.get_data_type(), 
                        neural.get_data_dims(), 
@@ -440,7 +440,7 @@ vnrRenderer vnrCreateRenderer(vnrVolume v)
   else {
     auto& source = std::dynamic_pointer_cast<SimpleVolumeContext>(self->volume)->source;
 
-    std::cout << "REF MC " <<  source.get_macrocell_value_range() << std::endl;
+    // std::cout << "REF MC " <<  source.get_macrocell_value_range() << std::endl;
     renderer.set_scene(source.texture(), 
                        source.get_data_type(), 
                        source.get_data_dims(), 
