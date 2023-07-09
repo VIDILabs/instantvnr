@@ -4,7 +4,7 @@
 
 Published in: IEEE Transactions on Visualization and Computer Graphics ( Early Access )
 
-[Project Page](https://wilsoncernwq.github.io/publication/tvcg2023-instant-vnr), 
+[Project Page](https://wilsoncernwq.github.io/publication/tvcg2022-instant-vnr), 
 [Github Page](https://github.com/VIDILabs/instantvnr), 
 [ArXiv](https://arxiv.org/abs/2207.11620),
 [Publishers' Version](https://ieeexplore.ieee.org/document/10175377)
