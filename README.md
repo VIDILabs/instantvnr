@@ -1,10 +1,13 @@
-# Instant Neural Representation for Interactive Volume Rendering
+# Interactive Volume Visualization Via Multi-Resolution Hash Encoding Based Neural Representation
 
 ### Qi Wu, David Bauer, Michael J. Doyle, and Kwan-Liu Ma
 
+Published in: IEEE Transactions on Visualization and Computer Graphics ( Early Access )
+
 [Project Page](https://wilsoncernwq.github.io/publication/tvcg2023-instant-vnr), 
 [Github Page](https://github.com/VIDILabs/instantvnr), 
-[ArXiv](https://arxiv.org/abs/2207.11620)
+[ArXiv](https://arxiv.org/abs/2207.11620),
+[Publishers' Version](https://ieeexplore.ieee.org/document/10175377)
 
 ### TODO
 
@@ -45,9 +48,13 @@ TODO ...
 ### Citation
 ```bibtex
 @article{wu2022instant,
-    title={Instant Neural Representation for Interactive Volume Rendering},
-    author={Wu, Qi and Doyle, Michael J and Bauer, David and Ma, Kwan-Liu},
-    journal={arXiv preprint arXiv:2207.11620},
-    year={2022}
+  author={Wu, Qi and Bauer, David and Doyle, Michael J. and Ma, Kwan-Liu},
+  journal={IEEE Transactions on Visualization and Computer Graphics}, 
+  title={Interactive Volume Visualization Via Multi-Resolution Hash Encoding Based Neural Representation}, 
+  year={2023},
+  volume={},
+  number={},
+  pages={1-14},
+  doi={10.1109/TVCG.2023.3293121}
 }
 ```
