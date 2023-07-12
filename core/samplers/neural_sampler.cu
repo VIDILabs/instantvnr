@@ -4,24 +4,6 @@
 using TCNN_NAMESPACE :: generate_random_uniform;
 using default_rng_t = TCNN_NAMESPACE :: default_rng_t;
 
-namespace vidi {
-enum VoxelType {
-  VOXEL_UINT8  = vnr::VALUE_TYPE_UINT8,
-  VOXEL_INT8   = vnr::VALUE_TYPE_INT8,
-  VOXEL_UINT16 = vnr::VALUE_TYPE_UINT16,
-  VOXEL_INT16  = vnr::VALUE_TYPE_INT16,
-  VOXEL_UINT32 = vnr::VALUE_TYPE_UINT32,
-  VOXEL_INT32  = vnr::VALUE_TYPE_INT32,
-  VOXEL_FLOAT  = vnr::VALUE_TYPE_FLOAT,
-  VOXEL_DOUBLE = vnr::VALUE_TYPE_DOUBLE,
-};
-} // namespace vidi
-#define VIDI_VOLUME_EXTERNAL_TYPE_ENUM
-#include <vidi_parallel_algorithm.h>
-#include <vidi_volume_reader.h>
-
-#include <tbb/parallel_for.h>
-
 // #define TEST_SIREN 
 
 #ifdef ENABLE_LOGGING
@@ -43,51 +25,6 @@ template<class T>
 constexpr const T& clamp(const T& v, const T& lo, const T& hi)
 {
     return (v < lo) ? lo : (hi < v) ? hi : v;
-}
-
-template<typename IType>
-std::shared_ptr<char[]>
-convert_volume(std::shared_ptr<char[]> idata, size_t size, float vmin, float vmax)
-{
-  std::shared_ptr<char[]> odata;
-  odata.reset(new char[size * sizeof(float)]);
-
-  tbb::parallel_for(size_t(0), size, [&](size_t idx) {
-    auto* i = (IType*)&idata[idx * sizeof(IType)];
-    auto* o = (float*)&odata[idx * sizeof(float)];
-#ifdef TEST_SIREN
-    *o = clamp((static_cast<float>(*i) - (float)vmin) / ((float)vmax - (float)vmin), 0.f, 1.f) * 2.f - 1.f;
-#else
-    *o = clamp((static_cast<float>(*i) - (float)vmin) / ((float)vmax - (float)vmin), 0.f, 1.f);
-#endif
-  });
-
-  return odata;
-}
-
-template<>
-std::shared_ptr<char[]>
-convert_volume<float>(std::shared_ptr<char[]> idata, size_t size, float vmin, float vmax)
-{
-  tbb::parallel_for(size_t(0), size, [&](size_t idx) {
-    auto* i = (float*)&idata[idx * sizeof(float)];
-#ifdef TEST_SIREN
-    *i = clamp((static_cast<float>(*i) - (float)vmin) / ((float)vmax - (float)vmin), 0.f, 1.f) * 2.f - 1.f;
-#else
-    *i = clamp((static_cast<float>(*i) - (float)vmin) / ((float)vmax - (float)vmin), 0.f, 1.f);
-#endif
-  });
-
-  return idata;
-}
-
-template<typename T>
-static range1f
-compute_scalar_fminmax(const void* _array, size_t count)
-{
-  using vidi::parallel::compute_scalar_minmax;
-  auto r = compute_scalar_minmax<T>(_array, count, 0);
-  return range1f((float)r.first, (float)r.second);
 }
 
 } // namespace
@@ -181,73 +118,6 @@ StaticSampler::StaticSampler(const MultiVolume& desc, bool save_volume, bool ski
     m_value_range_unnormalized.extend(unnormalized);
     m_value_range_normalized.extend(normalized);
   }
-}
-
-void
-StaticSampler::load(const MultiVolume::File& desc,
-                    vec3i dims, dtype type, range1f minmax,
-                    std::shared_ptr<char[]>& buffer,
-                    range1f& value_range_unnormalized,
-                    range1f& value_range_normalized)
-{
-  const auto& offset = desc.offset;
-  const auto& filename = desc.filename;
-  const auto& is_big_endian = desc.bigendian;
-
-  /* load data from file */
-  {
-    vidi::StructuredRegularVolumeDesc desc;
-    desc.dims.x = dims.x;
-    desc.dims.y = dims.y;
-    desc.dims.z = dims.z;
-    desc.type = (vidi::VoxelType)type;
-    desc.offset = offset;
-    desc.is_big_endian = is_big_endian;
-    buffer = vidi::read_volume_structured_regular(filename, desc);
-  }
-
-  /* copy data to GPU */
-  const size_t count = (size_t)dims.x * dims.y * dims.z;
-
-  /* convert volume into floats */
-  range1f range;
-  {
-    if (minmax.is_empty()) {
-      switch (type) {
-      case VALUE_TYPE_UINT8: range = compute_scalar_fminmax<uint8_t>(buffer.get(), count); break;
-      case VALUE_TYPE_INT8: range = compute_scalar_fminmax<int8_t>(buffer.get(), count); break;
-      case VALUE_TYPE_UINT16: range = compute_scalar_fminmax<uint16_t>(buffer.get(), count); break;
-      case VALUE_TYPE_INT16: range = compute_scalar_fminmax<int16_t>(buffer.get(), count); break;
-      case VALUE_TYPE_UINT32: range = compute_scalar_fminmax<uint32_t>(buffer.get(), count); break;
-      case VALUE_TYPE_INT32: range = compute_scalar_fminmax<int32_t>(buffer.get(), count); break;
-      case VALUE_TYPE_FLOAT: range = compute_scalar_fminmax<float>(buffer.get(), count); break;
-      case VALUE_TYPE_DOUBLE: range = compute_scalar_fminmax<double>(buffer.get(), count); break;
-      default: throw std::runtime_error("unknown data type");
-      }
-    }
-    else {
-      range = minmax;
-    }
-
-    switch (type) {
-    case VALUE_TYPE_UINT8: buffer = convert_volume<uint8_t>  (buffer, count, range.lower, range.upper); break;
-    case VALUE_TYPE_INT8: buffer = convert_volume<int8_t>    (buffer, count, range.lower, range.upper); break;
-    case VALUE_TYPE_UINT16: buffer = convert_volume<uint16_t>(buffer, count, range.lower, range.upper); break;
-    case VALUE_TYPE_INT16: buffer = convert_volume<int16_t>  (buffer, count, range.lower, range.upper); break;
-    case VALUE_TYPE_UINT32: buffer = convert_volume<uint32_t>(buffer, count, range.lower, range.upper); break;
-    case VALUE_TYPE_INT32: buffer = convert_volume<int32_t>  (buffer, count, range.lower, range.upper); break;
-    case VALUE_TYPE_FLOAT: buffer = convert_volume<float>    (buffer, count, range.lower, range.upper); break;
-    case VALUE_TYPE_DOUBLE: buffer = convert_volume<double>  (buffer, count, range.lower, range.upper); break;
-    default: throw std::runtime_error("unknown data type");
-    }
-  }
-  value_range_unnormalized = range;
-  value_range_normalized.lower = 0.f;
-  value_range_normalized.upper = 1.f;
-  // std::tie(value_range_normalized.lower, value_range_normalized.upper) = vidi::parallel::compute_scalar_minmax<float>(buffer.get(), count, 0);
-
-  log() << "[vnr] unnormalized range " << value_range_unnormalized.lower << " " << value_range_unnormalized.upper << std::endl;
-  log() << "[vnr] normalized range " << value_range_normalized.lower << " " << value_range_normalized.upper << std::endl;
 }
 
 void 

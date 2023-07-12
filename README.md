@@ -40,9 +40,23 @@ cmake .. -DGDT_CUDA_ARCHITECTURES=86 -DOVR_BUILD_MODULE_NNVOLUME=ON -DOVR_BUILD_
 cmake --build . --config Release --parallel 16
 ```
 
+We also provide a docker container to build the project entirely
+```
+```
+
 ### Execution
 ```
-TODO ...
+# # In the binary output directory, setup symbolic links to the data folder
+# ln -s ../../data .
+# cp ../../projects/instantvnr/example-model.json .
+
+./vnr_int_dual --rendering-mode 14 --volume ./data/configs/scene_vorts1.json --network ./example-model.json
+
+./vnr_int_single --neural-volume ./params.json --tfn ./data/configs/scene_vorts1.json --rendering-mode 5
+
+./vnr_cmd_train --volume ./data/configs/scene_vorts1.json --network ./example-model.json 
+
+./vnr_cmd_render --neural-volume ./params.json --tfn ./data/configs/scene_vorts1.json --rendering-mode 5 --num-frames 16
 ```
 
 ### Citation

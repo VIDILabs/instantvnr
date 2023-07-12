@@ -366,6 +366,8 @@ public:
     , background_task(std::bind(&MainWindow::background_work, this))
     , args(commandline)
   {
+    ImPlot::CreateContext();
+
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
