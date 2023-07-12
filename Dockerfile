@@ -1,10 +1,12 @@
 # Example Command to Run
 #   docker build -t instantvnr .
 #   xhost +si:localuser:root
-#   docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix instantvnr
-#   docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v ${PWD}:/instantvnr/source -w /instantvnr/build instantvnr
+#   docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -w /instantvnr/build instantvnr
 
 FROM nvidia/cuda:11.6.2-devel-ubuntu20.04
+
+# Select a CUDA architecture to build. Currently we do not support multi-arch builds.
+ARG CUDA_ARCH=70
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -40,7 +42,10 @@ RUN ln -s /instantvnr/source /instantvnr/ovr/projects/instantvnr
 RUN mkdir -p /instantvnr/build
 RUN cmake -S /instantvnr/ovr -B/instantvnr/build -GNinja \
     -DOptiX_INSTALL_DIR=/instantvnr/ovr/github-actions/optix-cmake-github-actions/NVIDIA-OptiX-SDK-7.3.0-linux64-x86_64 \
-    -DGDT_CUDA_ARCHITECTURES=75 -DOVR_BUILD_MODULE_NNVOLUME=ON -DOVR_BUILD_DEVICE_OSPRAY=OFF -DOVR_BUILD_DEVICE_OPTIX7=ON
+    -DGDT_CUDA_ARCHITECTURES=${CUDA_ARCH} \
+    -DOVR_BUILD_MODULE_NNVOLUME=ON \
+    -DOVR_BUILD_DEVICE_OSPRAY=OFF \
+    -DOVR_BUILD_DEVICE_OPTIX7=ON
 RUN cmake --build /instantvnr/build --config Release --parallel 16
 
 RUN ln -s /instantvnr/ovr/data /instantvnr/build/data

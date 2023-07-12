@@ -11,18 +11,24 @@ Published in: IEEE Transactions on Visualization and Computer Graphics ( Early A
 
 ### TODO
 
-- [ ] Complete & correct documentations
-- [ ] Provide a docker container
-- [ ] Test on multiple platforms
+- [X] Complete documentations
+- [X] Provide a docker container
+- [ ] Document data configuration files
+- [ ] Support isosurface
+- [ ] Support rendering with isosurfaces
+- [ ] Support rendering with unstructured data clipping
+- [ ] More modular sampling and training API
 
 ### Abstract
 
 Neural networks have shown great potential in compressing volume data for visualization. However, due to the high cost of training and inference, such volumetric neural representations have thus far only been applied to offline data processing and non-interactive rendering. In this paper, we demonstrate that by simultaneously leveraging modern GPU tensor cores, a native CUDA neural network framework, and a well-designed rendering algorithm with macro-cell acceleration, we can interactively ray trace volumetric neural representations (10-60fps). Our neural representations are also high-fidelity (PSNR > 30dB) and compact (10-1000x smaller). Additionally, we show that it is possible to fit the entire training step inside a rendering loop and skip the pre-training process completely. To support extreme-scale volume data, we also develop an efficient out-of-core training strategy, which allows our volumetric neural representation training to potentially scale up to terascale using only an NVIDIA RTX 3090 workstation.
 
 
-### Build Instructions (WIP)
+### Build Instructions
 
-This project is expected to be built with our lightweight scientific visualization development framework: OVR. 
+This project is expected to be built with our lightweight scientific visualization development framework, [OVR](https://github.com/VIDILabs/open-volume-renderer). Our project currently require an NVIDIA GPU with compute compatibility >= 7.0.
+
+#### Command Line
 
 ```
 # Download the development framework
@@ -38,26 +44,34 @@ mkdir build
 cd build
 cmake .. -DGDT_CUDA_ARCHITECTURES=86 -DOVR_BUILD_MODULE_NNVOLUME=ON -DOVR_BUILD_DEVICE_OSPRAY=OFF -DOVR_BUILD_DEVICE_OPTIX7=OFF
 cmake --build . --config Release --parallel 16
-```
 
-We also provide a docker container to build the project entirely
-```
-```
+# In the binary output directory, setup symbolic links to the data folder
+ln -s ../../data .
+cp ../../projects/instantvnr/example-model.json .
 
-### Execution
-```
-# # In the binary output directory, setup symbolic links to the data folder
-# ln -s ../../data .
-# cp ../../projects/instantvnr/example-model.json .
-
-./vnr_int_dual --rendering-mode 14 --volume ./data/configs/scene_vorts1.json --network ./example-model.json
-
+# Run Apps
+./vnr_int_dual   --volume ./data/configs/scene_vorts1.json --network ./example-model.json --rendering-mode 5
 ./vnr_int_single --neural-volume ./params.json --tfn ./data/configs/scene_vorts1.json --rendering-mode 5
-
-./vnr_cmd_train --volume ./data/configs/scene_vorts1.json --network ./example-model.json 
-
-./vnr_cmd_render --neural-volume ./params.json --tfn ./data/configs/scene_vorts1.json --rendering-mode 5 --num-frames 16
+./vnr_cmd_train  --volume ./data/configs/scene_vorts1.json --network ./example-model.json 
+./vnr_cmd_render --neural-volume ./params.json --tfn ./data/configs/scene_vorts1.json --rendering-mode 5 --num-frames 1
 ```
+
+#### Docker Containers
+
+We also provide a docker container to build the project and run our applications
+```
+# Build the docker container
+git clone --recursive https://github.com/VIDILabs/instantvnr.git
+cd instantvnr
+docker build -t instantvnr --build-arg="CUDA_ARCH=86" .
+xhost +si:localuser:root
+
+# Launch an interactive docker session
+docker run --gpus device=0 --runtime=nvidia -ti  --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix  -w /instantvnr/build instantvnr
+```
+
+You can also directly execute apps through the docker container
+
 
 ### Citation
 ```bibtex
