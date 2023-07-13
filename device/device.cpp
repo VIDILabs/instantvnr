@@ -1,5 +1,5 @@
 #include "device.h"
-#include "renderer.h"
+#include "device_impl.h"
 
 #include <ovr/common/dylink/ObjectFactory.h>
 
@@ -12,7 +12,10 @@ DeviceNNVolume::~DeviceNNVolume()
   pimpl.reset();
 }
 
-DeviceNNVolume::DeviceNNVolume() : MainRenderer(), pimpl(new Impl()) {}
+DeviceNNVolume::DeviceNNVolume() 
+  : MainRenderer(), pimpl(new Impl()) 
+{
+}
 
 void
 DeviceNNVolume::init(int argc, const char** argv)
@@ -24,7 +27,6 @@ DeviceNNVolume::init(int argc, const char** argv)
 void
 DeviceNNVolume::swap()
 {
-  pimpl->swap();
 }
 
 void
@@ -49,17 +51,17 @@ DeviceNNVolume::mapframe(FrameBufferData* fb)
   return pimpl->mapframe(fb);
 }
 
-void
-DeviceNNVolume::set_occlusion(vnrVolume v)
-{
-  pimpl->set_occlusion(v);
-}
+// void
+// DeviceNNVolume::set_occlusion(vnrVolume v)
+// {
+//   // pimpl->set_occlusion(v);
+// }
 
-void
-DeviceNNVolume::set_shadow(vnrVolume v)
-{
-  pimpl->set_shadow(v);
-}
+// void
+// DeviceNNVolume::set_shadow(vnrVolume v)
+// {
+//   // pimpl->set_shadow(v);
+// }
 
 } // namespace ovr::nnvolume
 

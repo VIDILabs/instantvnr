@@ -14,7 +14,7 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
-#include "array.h"
+#include "device_nnvolume_array.h"
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_reduce.h>
@@ -42,7 +42,7 @@ compute_scalar_range(const void* _array, size_t count, size_t stride)
 
   T init;
 
-  init = std::is_signed<T>::value ? -std::numeric_limits<T>::max() : T(0);
+  init = std::numeric_limits<T>::min();
   T actual_max = tbb::parallel_reduce(
     tbb::blocked_range<size_t>(0, count), init,
     [value](const tbb::blocked_range<size_t>& r, T v) -> T {
@@ -121,7 +121,7 @@ CreateArray1DScalarCUDA(const std::vector<T>& input, cudaStream_t stream)
 
   Array1DScalarCUDA output;
   output.type = value_type<T>();
-  output.dims = input.size();
+  output.dims = (int)input.size();
   std::tie(output.lower.v, output.upper.v) = cuda_scalar_range<T>(input.data(), input.size(), 0);
   output.scale.v = 1.f / (output.upper.v - output.lower.v);
   auto array_handler = createCudaArray1D<T>(input.data(), input.size());
@@ -220,7 +220,7 @@ CreateArray1DFloat4CUDA(const std::vector<vec4f>& input, cudaStream_t stream)
   Array1DFloat4CUDA output;
 
   output.type = VALUE_TYPE_FLOAT4;
-  output.dims = input.size();
+  output.dims = (int)input.size();
   auto* dx = (float*)input.data();
   auto* dy = dx + 1;
   auto* dz = dx + 2;

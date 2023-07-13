@@ -142,7 +142,7 @@ struct LossLogger {
     std::lock_guard<std::mutex> lock{ mutex };
 
     loss = stats_loss;
-    step = stats_step;
+    step = (size_t)stats_step;
 
     if (local_steps.size() > size) {
       local_steps.erase(local_steps.begin());
@@ -515,8 +515,8 @@ public:
       }
       {
         stats.update(
-          vnrNeuralVolumeGetTrainingLoss(neural_volume),
-          vnrNeuralVolumeGetTrainingStep(neural_volume)
+          (float)vnrNeuralVolumeGetTrainingLoss(neural_volume),
+          (float)vnrNeuralVolumeGetTrainingStep(neural_volume)
         );
         std::cout <<   "step=" << vnrNeuralVolumeGetTrainingStep(neural_volume)
                   << "  loss=" << vnrNeuralVolumeGetTrainingLoss(neural_volume) 
@@ -677,8 +677,8 @@ public:
       if (stats.step % 10 == 0) 
       {
         stats.update(
-          vnrNeuralVolumeGetTrainingLoss(neural_volume),
-          vnrNeuralVolumeGetTrainingStep(neural_volume)
+          (float)vnrNeuralVolumeGetTrainingLoss(neural_volume),
+          (float)vnrNeuralVolumeGetTrainingStep(neural_volume)
         );
 
         std::vector<double> log = {
@@ -702,7 +702,7 @@ public:
 
     if (trigger_test)
     { 
-      float loss = vnrNeuralVolumeGetTestingLoss(neural_volume);
+      float loss = (float)vnrNeuralVolumeGetTestingLoss(neural_volume);
       std::cout << "[test] loss = " << loss << std::endl;
 
       trigger_test = false;
@@ -914,7 +914,7 @@ public:
       if (ImPlot::BeginPlot("##Loss Plot", ImVec2(500,150), ImPlotFlags_AntiAliased | ImPlotFlags_NoFrame)) {
         ImPlot::SetupAxes("Loss History", "Loss", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
         ImPlot::SetupLegend(ImPlotLocation_East, ImPlotLegendFlags_Outside);
-        ImPlot::PlotLine("Loss", x0.data(), y0.data(), x0.size());
+        ImPlot::PlotLine("Loss", x0.data(), y0.data(), (int)x0.size());
         ImPlot::EndPlot();
       }
 
@@ -941,7 +941,7 @@ public:
 
     if (xpos >= 0 && ypos >= 0 && xpos < width && ypos < height) {
       vec4f color;
-      glReadPixels(xpos, ypos, 1, 1, GL_RGBA, GL_FLOAT, &color);
+      glReadPixels((GLint)xpos, (GLint)ypos, 1, 1, GL_RGBA, GL_FLOAT, &color);
 
       title << " pixel_index = " << (int)(xpos + ypos * width) << " color = (" << color.x << " " << color.y << " " << color.z << " " << color.w << ")";
     }
@@ -976,10 +976,10 @@ public:
     std::vector<char> image((uint64_t)size.x*size.y*4);
     for (uint64_t i = 0; i < (uint64_t)size.x*size.y; ++i) {
       const auto in = pixels[i];
-      const uint32_t r(255.99f * clamp(in.x, 0.f, 1.f));
-      const uint32_t g(255.99f * clamp(in.y, 0.f, 1.f));
-      const uint32_t b(255.99f * clamp(in.z, 0.f, 1.f));
-      const uint32_t a(255.99f * clamp(in.w, 0.f, 1.f));
+      const uint32_t r = (uint32_t)(255.99f * clamp(in.x, 0.f, 1.f));
+      const uint32_t g = (uint32_t)(255.99f * clamp(in.y, 0.f, 1.f));
+      const uint32_t b = (uint32_t)(255.99f * clamp(in.z, 0.f, 1.f));
+      const uint32_t a = (uint32_t)(255.99f * clamp(in.w, 0.f, 1.f));
       image[4*i+0] = r;
       image[4*i+1] = g;
       image[4*i+2] = b;

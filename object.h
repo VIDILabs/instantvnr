@@ -12,9 +12,8 @@
 #ifndef OVR_VOLUME_H
 #define OVR_VOLUME_H
 
-#include "types.h"
-
-#include "network.h"
+#include "core/instantvnr_types.h"
+#include "core/network.h"
 
 #include <colormap.h>
 
@@ -95,7 +94,7 @@ public:
 
   virtual CUdeviceptr get_sbt_pointer(cudaStream_t stream) = 0;
 
-  virtual CUdeviceptr d_pointer() const = 0;
+  // virtual CUdeviceptr d_pointer() const = 0;
 
   virtual void commit(cudaStream_t stream) = 0;
 
@@ -176,57 +175,6 @@ public:
 //
 // ------------------------------------------------------------------
 
-struct BoxesGeometry
-  : protected HasSbtEquivalent<DeviceBoxes>
-  , public MeshGeometry
-  , public InstantiableGeometry {
-private:
-  uint64_t num_boxes{ 0 };
-
-  // CUDABuffer colorBuffer;
-
-private:
-  void add_unit_cube(const affine3f& xfm)
-  {
-    int firstVertexID = (int)vertex.size();
-    vertex.push_back(xfmPoint(xfm, vec3f(0.f, 0.f, 0.f)));
-    vertex.push_back(xfmPoint(xfm, vec3f(1.f, 0.f, 0.f)));
-    vertex.push_back(xfmPoint(xfm, vec3f(0.f, 1.f, 0.f)));
-    vertex.push_back(xfmPoint(xfm, vec3f(1.f, 1.f, 0.f)));
-    vertex.push_back(xfmPoint(xfm, vec3f(0.f, 0.f, 1.f)));
-    vertex.push_back(xfmPoint(xfm, vec3f(1.f, 0.f, 1.f)));
-    vertex.push_back(xfmPoint(xfm, vec3f(0.f, 1.f, 1.f)));
-    vertex.push_back(xfmPoint(xfm, vec3f(1.f, 1.f, 1.f)));
-
-    int indices[] = { 0, 1, 3, 2, 3, 0, 5, 7, 6, 5, 6, 4, 0, 4, 5, 0, 5, 1,
-                      2, 3, 7, 2, 7, 6, 1, 5, 7, 1, 7, 3, 4, 0, 2, 4, 2, 6 };
-    for (int i = 0; i < 12; i++)
-      index.push_back(firstVertexID + vec3i(indices[3 * i + 0], indices[3 * i + 1], indices[3 * i + 2]));
-  }
-
-public:
-  CUdeviceptr get_sbt_pointer(cudaStream_t stream) override;
-  CUdeviceptr d_pointer() const override { return GetSbtPtr(); }
-  void commit(cudaStream_t stream) override;
-
-  void add_cube(const vec3f& center, const vec3f& size)
-  {
-    affine3f xfm;
-    xfm.p = center - 0.5f * size;
-    xfm.l.vx = vec3f(size.x, 0.f, 0.f);
-    xfm.l.vy = vec3f(0.f, size.y, 0.f);
-    xfm.l.vz = vec3f(0.f, 0.f, size.z);
-    add_unit_cube(xfm);
-    ++num_boxes;
-  }
-
-  // vec3f* color_buffer_ptr() const { return (vec3f*)colorBuffer.d_pointer(); }
-};
-
-// ------------------------------------------------------------------
-//
-// ------------------------------------------------------------------
-
 struct StructuredRegularVolume
   : protected HasSbtEquivalent<DeviceVolume>
   , public AabbGeometry
@@ -239,7 +187,6 @@ private:
 
   float sampling_rate = 1.f;
 
-  // cudaArray_t volume_array_handler{};
   cudaArray_t tfn_color_array_handler{};
   cudaArray_t tfn_alpha_array_handler{};
 
@@ -247,8 +194,9 @@ public:
   ~StructuredRegularVolume();
 
   CUdeviceptr get_sbt_pointer(cudaStream_t stream) override;
-  CUdeviceptr d_pointer() const override { return GetSbtPtr(); }
   void commit(cudaStream_t stream) override;
+
+  DeviceVolume* d_pointer() const { return (DeviceVolume*)GetSbtPtr(); }
 
   const vec3i& get_dims() const { return self.volume.dims; }
   const float& get_sampling_rate() const { return sampling_rate; }
@@ -265,8 +213,6 @@ public:
 
   DeviceVolume& device() { return self; }
 };
-
-// struct BlockBrickVolume {};
 
 } // namespace ovr
 #endif // OVR_VOLUME_H

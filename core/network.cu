@@ -131,7 +131,7 @@ compute_ssim(const uint32_t dimx, const uint32_t dimy, const uint32_t dimz,
 void 
 generate_grid_coords(float* d_coords, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream)
 {
-  util::linear_kernel(generate_coords, 0, stream, grid_dims.long_product(), 
+  util::linear_kernel(generate_coords, 0, stream, (uint32_t)grid_dims.long_product(), 
                       grid_origin, grid_dims, grid_spacing, (float*)d_coords);
 }
 
@@ -216,11 +216,11 @@ public:
     m_trainer.m_inference_buffer = GPUMemory<float>(num_coords_padded * m_neural->n_input());
     m_trainer.m_infer_x = std::make_unique<GPUColumnMatrix>(m_trainer.m_inference_buffer.data(), INPUT_SIZE, (uint32_t)num_coords_padded);
     m_trainer.m_infer_y = std::make_unique<GPUColumnMatrix>(OUTPUT_SIZE, (uint32_t)num_coords_padded);
-    m_trainer.m_train_x = std::make_unique<GPUColumnMatrix>(INPUT_SIZE, batch_size);
-    m_trainer.m_train_y = std::make_unique<GPUColumnMatrix>(OUTPUT_SIZE, batch_size);
-    m_trainer.m_test_x  = std::make_unique<GPUColumnMatrix>(m_trainer.m_train_x->data(), INPUT_SIZE,  batch_size);
-    m_trainer.m_test_y0 = std::make_unique<GPUColumnMatrix>(m_trainer.m_train_y->data(), OUTPUT_SIZE, batch_size);
-    m_trainer.m_test_y1 = std::make_unique<GPUColumnMatrix>(OUTPUT_SIZE, batch_size);
+    m_trainer.m_train_x = std::make_unique<GPUColumnMatrix>(INPUT_SIZE,  (uint32_t)batch_size);
+    m_trainer.m_train_y = std::make_unique<GPUColumnMatrix>(OUTPUT_SIZE, (uint32_t)batch_size);
+    m_trainer.m_test_x  = std::make_unique<GPUColumnMatrix>(m_trainer.m_train_x->data(), INPUT_SIZE,  (uint32_t)batch_size);
+    m_trainer.m_test_y0 = std::make_unique<GPUColumnMatrix>(m_trainer.m_train_y->data(), OUTPUT_SIZE, (uint32_t)batch_size);
+    m_trainer.m_test_y1 = std::make_unique<GPUColumnMatrix>(OUTPUT_SIZE, (uint32_t)batch_size);
     m_trainer.m_loss_buffer = GPUMemory<float>(batch_size);
 
     m_trainer.m_gdims = gdims;
@@ -239,7 +239,7 @@ public:
     const vec3f lower = vec3f(m_trainer.m_lower) / vec3f(m_trainer.m_gdims);
     const vec3f upper = vec3f(m_trainer.m_upper) / vec3f(m_trainer.m_gdims);
 
-    float loss;
+    // float loss;
 
     for (int i = 0; i < steps; ++i) {
       m_source->sampler.take_samples(m_trainer.m_train_x->data(), m_trainer.m_train_y->data(), m_batch_size, stream, lower, upper);
@@ -300,8 +300,8 @@ public:
     const auto dims = m_trainer.m_upper - m_trainer.m_lower;
     const auto nz = std::min((int)m_trainer.m_num_slices_per_blob, dims.z - b * (int)m_trainer.m_num_slices_per_blob);
 
-    util::linear_kernel(generate_coords, 0, stream, (size_t)dims.x * dims.y * nz, 
-                        vec3i(m_trainer.m_lower.x, m_trainer.m_lower.y, m_trainer.m_lower.z + b * m_trainer.m_num_slices_per_blob), 
+    util::linear_kernel(generate_coords, 0, stream, (uint32_t)((size_t)dims.x * dims.y * nz), 
+                        vec3i(m_trainer.m_lower.x, m_trainer.m_lower.y, m_trainer.m_lower.z + b * (uint32_t)m_trainer.m_num_slices_per_blob), 
                         vec3i(dims.x, dims.y, nz), 
                         vec3f(1.f / m_trainer.m_gdims.x, 1.f / m_trainer.m_gdims.y, 1.f / m_trainer.m_gdims.z), 
                         m_trainer.m_inference_buffer.data());
@@ -343,9 +343,9 @@ public:
     vidi::FileMap w = vidi::filemap_write_create(filename, sizeof(float) * count * dims.z);
     uint64_t bw = 0;
     for (int z = 0; z < dims.z; ++z) {
-      util::linear_kernel(generate_coords, 0, 0, count, vec3i(0,0,z), batch, rdims, (float*)slice_input.data());
-      GPUColumnMatrix x((float*)slice_input.data(), 3, count);
-      GPUColumnMatrix y((float*)slice_value.data(), 1, count);
+      util::linear_kernel(generate_coords, 0, 0, (uint32_t)count, vec3i(0,0,z), batch, rdims, (float*)slice_input.data());
+      GPUColumnMatrix x((float*)slice_input.data(), 3, (uint32_t)count);
+      GPUColumnMatrix y((float*)slice_value.data(), 1, (uint32_t)count);
       
       m_neural->infer(x, y, 0);
 
@@ -421,8 +421,8 @@ public:
     GPUMemory<vec3f> coords(N);
     GPUMemory<float> values_inference(N);
     GPUMemory<float> values_reference(N);
-    GPUColumnMatrix network_i((float*)coords.data(),   3, N);
-    GPUColumnMatrix network_o(values_inference.data(), 1, N);
+    GPUColumnMatrix network_i((float*)coords.data(),   3, (uint32_t)N);
+    GPUColumnMatrix network_o(values_inference.data(), 1, (uint32_t)N);
 
     float* loss = (float*)coords.data();
 
@@ -468,7 +468,7 @@ public:
     // compute psnr
     const float range = value_max - value_min;
     const float mse = error_sum / dims.long_product();
-    return 10. * log10(range * range / mse);
+    return (float)(10. * log10(range * range / mse));
   }
 
   float get_mssim(vec3i dims, bool quiet) const
@@ -479,8 +479,8 @@ public:
 
     const vec3f rdims = 1.f / dims;
 
-    constexpr float K1 = 0.01;
-    constexpr float K2 = 0.03;
+    constexpr float K1 = 0.01f;
+    constexpr float K2 = 0.03f;
     constexpr bool use_sample_covariance = true;
 
     constexpr int ndim = 3; // inputs are volumetric data
@@ -501,8 +501,8 @@ public:
     GPUMemory<float>   grid_input(3 * batch_grid_count);
     GPUMemory<float>   grid_inference(batch_grid_count);
     GPUMemory<float>   grid_reference(batch_grid_count);
-    GPUColumnMatrix network_in (grid_input.data(), 3, batch_grid_count);
-    GPUColumnMatrix network_out(grid_inference.data(), 1, batch_grid_count);
+    GPUColumnMatrix network_in (grid_input.data(),     3, (uint32_t)batch_grid_count);
+    GPUColumnMatrix network_out(grid_inference.data(), 1, (uint32_t)batch_grid_count);
     float* output = grid_input.data();
 
     // probably should calculate the true value range
@@ -660,7 +660,7 @@ public:
       const float mse = error / count;
 
       // compute psnr
-      return 10. * log10(range * range / mse);
+      return (float)(10. * log10(range * range / mse));
     };
 
     const size_t n_mcs = m_macrocell.dims().long_product();
@@ -970,7 +970,7 @@ uint32_t
 NeuralVolume::get_num_blobs() const
 {
   const auto dims = pimpl->m_dims;
-  const auto num_slices_per_blob = pimpl->m_trainer.m_num_slices_per_blob;
+  const auto num_slices_per_blob = (uint32_t)pimpl->m_trainer.m_num_slices_per_blob;
   return (dims.z + num_slices_per_blob - 1) / num_slices_per_blob;
 }
 

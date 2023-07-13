@@ -10,7 +10,7 @@
 
 #include <json/json.hpp>
 
-#include "../types.h"
+#include "../instantvnr_types.h"
 
 #ifndef ENABLE_IN_SHADER // TODO automatically detect the new API
 #define TCNN_NEW_API

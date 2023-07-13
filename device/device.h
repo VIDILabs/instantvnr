@@ -28,8 +28,8 @@ public:
   void render() override;
   void mapframe(FrameBufferData* fb) override;
 
-  void set_occlusion(vnrVolume);
-  void set_shadow(vnrVolume);
+  // void set_occlusion(vnrVolume);
+  // void set_shadow(vnrVolume);
 
 private:
   struct Impl;

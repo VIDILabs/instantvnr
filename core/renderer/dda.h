@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../types.h"
+#include "../instantvnr_types.h"
 
 #include <gdt/math/vec.h>
 #include <gdt/math/mat.h>

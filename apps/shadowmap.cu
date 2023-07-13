@@ -1,13 +1,14 @@
-#include "scene.h"
-#include "serializer/serializer.h"
+// TODO this file is incomplete
 
-#include "apps/cmdline.h"
+#include "cmdline.h"
 
-#include "shadowmap/array.h"
+#include "device/device_nnvolume_array.h"
 
 #include <ovr/common/math_def.h>
 #include <ovr/common/random/random.h>
 #include <ovr/common/dylink/Library.h>
+#include <ovr/scene.h>
+#include <ovr/serializer/serializer.h>
 
 #include <cuda/cuda_buffer.h>
 
@@ -162,7 +163,7 @@ public:
 
         lights_buffer.alloc_and_upload(lights);
 
-        device.n_lights = lights.size();
+        device.n_lights = (int)lights.size();
         device.lights  = (Light *)lights_buffer.d_pointer();
     }
 
@@ -401,10 +402,10 @@ public:
     int num_ring_lights() { return (m_ring_lights) ?  args::get(m_ring_lights) : 0; }
 
     args::ValueFlag<float> m_theta;
-    int value_theta() {return (m_theta) ? args::get(m_theta) : 0; }
+    float value_theta() { return (m_theta) ? args::get(m_theta) : 0.f; }
 
     args::ValueFlag<float> m_phi;
-    int value_phi() {return (m_phi) ? args::get(m_phi) : 0; }
+    float value_phi() { return (m_phi) ? args::get(m_phi) : 0.f; }
 
 public:
     CmdArgs(const char *title, int argc, char **argv)
@@ -451,13 +452,13 @@ int main(int ac, char **av)
             scene::Light light;
             light.type = scene::Light::DIRECTIONAL;
 
-            float theta = 2.0 * M_PI * ((float)rand() / (float)(RAND_MAX));
-            float phi   = 1.0 * M_PI * ((float)rand() / (float)(RAND_MAX));
+            float theta = 2.0f * (float)M_PI * ((float)rand() / (float)(RAND_MAX));
+            float phi   = 1.0f * (float)M_PI * ((float)rand() / (float)(RAND_MAX));
 
             // Generate Direction
-            float x = 1.0 * cos(phi) * sin(theta);
-            float y = 1.0 * sin(phi) * sin(theta);
-            float z = 1.0 * cos(theta);
+            float x = 1.0f * cos(phi) * sin(theta);
+            float y = 1.0f * sin(phi) * sin(theta);
+            float z = 1.0f * cos(theta);
             light.directional.direction = normalize(vec3f(x, y, z));
             std::cout << "Light Direction: " << light.directional.direction.x << " " << light.directional.direction.y << " " << light.directional.direction.z << " " << std::endl;
 
@@ -485,15 +486,15 @@ int main(int ac, char **av)
             light.type = scene::Light::DIRECTIONAL;
 
             // Theta and phi are passed in as deg
-            float theta = M_PI/180.f * args.value_theta();
+            float theta = (float)M_PI/180.f * args.value_theta();
 
             float phi_offset = 360.f / args.num_ring_lights();
-            float phi   = M_PI/180.f * (args.value_phi() + i * phi_offset);
+            float phi   = (float)M_PI/180.f * (args.value_phi() + i * phi_offset);
 
             // Generate Direction
-            float x = 1.0 * cos(phi) * sin(theta);
-            float y = 1.0 * sin(phi) * sin(theta);
-            float z = 1.0 * cos(theta);
+            float x = 1.0f * cos(phi) * sin(theta);
+            float y = 1.0f * sin(phi) * sin(theta);
+            float z = 1.0f * cos(theta);
             light.directional.direction = normalize(vec3f(x, y, z));
             std::cout << "Light Direction: " << light.directional.direction.x << " " << light.directional.direction.y << " " << light.directional.direction.z << " " << std::endl;
 
@@ -532,7 +533,7 @@ int main(int ac, char **av)
         tfn.clearAlphaControls();
 
         // Create Number of Gaussian, 1 to 10
-        const int num_gaussian = ((float)rand() / (float)(RAND_MAX) + 1) * 5;
+        const int num_gaussian = (int)(((float)rand() / (float)(RAND_MAX) + 1) * 5);
         std::cout << "Generate Gaussian #" << num_gaussian << std::endl;
 
         for (int each_gaussian = 0; each_gaussian < num_gaussian; ++each_gaussian)

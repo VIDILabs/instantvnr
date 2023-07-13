@@ -71,7 +71,7 @@ getXfmOTW()
 }
 
 inline vec2f __device__
-projectToScreen(const vec3f p, const LaunchParams::DeviceCamera& camera)
+projectToScreen(const vec3f p, const DeviceCamera& camera)
 {
   vec3f wsvec = p - camera.position;
   vec2f screen;

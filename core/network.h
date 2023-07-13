@@ -9,7 +9,7 @@
 #ifndef NEURAL_VOLUME_HPP
 #define NEURAL_VOLUME_HPP
 
-#include "types.h"
+#include "instantvnr_types.h"
 #include "sampler.h"
 
 #include <cuda.h>

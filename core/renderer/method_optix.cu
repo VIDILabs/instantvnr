@@ -334,39 +334,6 @@ __closesthit__volume_shadow()
   *getPRD<ShadowPayload>() = data;
 }
 
-// extern "C" __global__ void
-// __closesthit__boxes_geometry_radiance()
-// {
-//   const auto& self = getProgramData<DeviceBoxes>();
-//   auto& data = *getPRD<RadiancePayload>();
-// 
-//   // compute normal:
-//   const int primID = optixGetPrimitiveIndex();
-//   const vec3i index = self.index[primID];
-//   const vec3f& A = self.vertex[index.x];
-//   const vec3f& B = self.vertex[index.y];
-//   const vec3f& C = self.vertex[index.z];
-//   const vec3f Ng = normalize(cross(B - A, C - A));
-// 
-//   const vec3f rayDir = optixGetWorldRayDirection();
-//   const float cosDN = 0.2f + .8f * fabsf(dot(rayDir, Ng));
-// 
-//   // const int boxID = primID / 12;
-//   // const bool accessed = optixLaunchParams.volume_block_access[boxID] > 0;
-//   const bool accessed = false;
-//   const vec3f color = accessed ? vec3f(1, 0, 0) : vec3f(1, 1, 1);
-// 
-//   data.color = color * cosDN;
-//   data.alpha = 1.f;
-// 
-//   data.t_max = optixGetRayTmax();
-// }
-
-// extern "C" __global__ void
-// __closesthit__boxes_geometry_shadow()
-// {
-// }
-
 //------------------------------------------------------------------------------
 // anyhit
 // ------------------------------------------------------------------------------
@@ -378,16 +345,6 @@ __anyhit__volume_radiance()
 
 extern "C" __global__ void
 __anyhit__volume_shadow()
-{
-}
-
-extern "C" __global__ void
-__anyhit__boxes_geometry_radiance()
-{
-}
-
-extern "C" __global__ void
-__anyhit__boxes_geometry_shadow()
 {
 }
 

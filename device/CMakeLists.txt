@@ -1,7 +1,9 @@
 ################
 #
 ################
-add_library(device_nnvolume_array OBJECT array.cpp)
+add_library(device_nnvolume_array OBJECT 
+  device_nnvolume_array.cpp
+)
 set_target_properties(device_nnvolume_array 
 PROPERTIES
   CUDA_RESOLVE_DEVICE_SYMBOLS ON
@@ -16,8 +18,8 @@ target_link_libraries(device_nnvolume_array PRIVATE rendercommon TBB::tbb)
 add_library(device_nnvolume MODULE
   $<TARGET_OBJECTS:device_nnvolume_array>
   device.cpp
-  renderer.cpp
-  method_raymarching.cu
+  device_impl.cpp
+  # method_shadowmap.cu
 )
 set_target_properties(device_nnvolume 
 PROPERTIES

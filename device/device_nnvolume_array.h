@@ -17,13 +17,13 @@
 #pragma once
 
 #include "ovr/scene.h"
+
+#include <cuda_runtime.h>
 #include <cuda/cuda_buffer.h>
 
 #if defined(__cplusplus)
 #include <type_traits>
 #endif // defined(__cplusplus)
-
-#include <cuda_runtime.h>
 
 namespace ovr {
 

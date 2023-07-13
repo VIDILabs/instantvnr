@@ -3,11 +3,12 @@
 
 #include "api.h"
 
-#include "core/types.h"
-#include "core/serializer.h"
-#include "core/renderer.h"
+#include "core/instantvnr_types.h"
 #include "core/network.h"
 #include "core/sampler.h"
+
+#include "serializer.h"
+#include "renderer.h"
 
 namespace vnr {
 

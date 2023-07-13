@@ -83,14 +83,11 @@ MainRenderer::render()
   volume.commit(framebuffer_stream);
   params.transform = volume.matrix;
 
-  /* geometries ... */
-  // for (auto& b : boxes) b.commit(framebuffer_stream); // not needed for boxes geometry
-
   /* camera ... */
   const Camera& camera = camera_latest;
   /* the factor '2.f' here might be unnecessary, but I want to match ospray's implementation */
   const float fovy = camera.fovy;
-  const float t = 2.f /* (note above) */ * tan(fovy * 0.5f * M_PI / 180.f);
+  const float t = 2.f /* (note above) */ * tan(fovy * 0.5f * (float)M_PI / 180.f);
   const float aspect = params.frame.size.x / float(params.frame.size.y);
   params.last_camera = params.camera;
   params.camera.position = camera.from;
@@ -133,7 +130,7 @@ MainRenderer::render()
   // }
 
   framebuffer_reset = false;
-  framebuffer.download_async();
+  if (!framebuffer_skip_download) framebuffer.download_async();
 
   // sync - make sure the frame is rendered before we download and
   // display (obviously, for a high-performance application you
@@ -154,21 +151,21 @@ MainRenderer::render_normal()
   /* rendering */
   switch (rendering_mode) {
   // path tracing
-  case VNR_PATHTRACING_DECODING:         program_pathtracing.render(framebuffer_stream, params, volume); break;
-  case VNR_PATHTRACING_SAMPLE_STREAMING: program_pathtracing.render(framebuffer_stream, params, volume, nullptr, true); break;
-  case VNR_PATHTRACING_IN_SHADER:        program_pathtracing.render(framebuffer_stream, params, volume, nullptr, false); break;
+  case VNR_PATHTRACING_DECODING:         program_pathtracing.render(framebuffer_stream, params, volume.d_pointer());                 break;
+  case VNR_PATHTRACING_SAMPLE_STREAMING: program_pathtracing.render(framebuffer_stream, params, volume.d_pointer(), nullptr, true);  break;
+  case VNR_PATHTRACING_IN_SHADER:        program_pathtracing.render(framebuffer_stream, params, volume.d_pointer(), nullptr, false); break;
   // ray marching
-  case VNR_RAYMARCHING_NO_SHADING_DECODING:         program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::NO_SHADING); break;
-  case VNR_RAYMARCHING_NO_SHADING_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::NO_SHADING, nullptr, true); break;
-  case VNR_RAYMARCHING_NO_SHADING_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::NO_SHADING, nullptr, false); break;
+  case VNR_RAYMARCHING_NO_SHADING_DECODING:         program_raymarching.render(framebuffer_stream, params, MethodRayMarching::NO_SHADING, volume.d_pointer());                 break;
+  case VNR_RAYMARCHING_NO_SHADING_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, MethodRayMarching::NO_SHADING, volume.d_pointer(), nullptr, true);  break;
+  case VNR_RAYMARCHING_NO_SHADING_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, MethodRayMarching::NO_SHADING, volume.d_pointer(), nullptr, false); break;
   // ray marching
-  case VNR_RAYMARCHING_GRADIENT_SHADING_DECODING:         program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::GRADIENT_SHADING); break;
-  case VNR_RAYMARCHING_GRADIENT_SHADING_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::GRADIENT_SHADING, nullptr, true); break;
-  case VNR_RAYMARCHING_GRADIENT_SHADING_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::GRADIENT_SHADING, nullptr, false); break;
+  case VNR_RAYMARCHING_GRADIENT_SHADING_DECODING:         program_raymarching.render(framebuffer_stream, params, MethodRayMarching::GRADIENT_SHADING, volume.d_pointer());                 break;
+  case VNR_RAYMARCHING_GRADIENT_SHADING_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, MethodRayMarching::GRADIENT_SHADING, volume.d_pointer(), nullptr, true);  break;
+  case VNR_RAYMARCHING_GRADIENT_SHADING_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, MethodRayMarching::GRADIENT_SHADING, volume.d_pointer(), nullptr, false); break;
   // ray marching
-  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_DECODING:         program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::SINGLE_SHADE_HEURISTIC); break;
-  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::SINGLE_SHADE_HEURISTIC, nullptr, true); break;
-  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::SINGLE_SHADE_HEURISTIC, nullptr, false); break;
+  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_DECODING:         program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer());                 break;
+  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer(), nullptr, true);  break;
+  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer(), nullptr, false); break;
   // reference renderer
 #if defined(ENABLE_OPTIX)
   case VNR_OPTIX_NO_SHADING:             program_optix.render(framebuffer_stream, params, MethodOptiX::NO_SHADING);             break;
@@ -189,21 +186,21 @@ MainRenderer::render_neural()
   /* rendering */
   switch (rendering_mode) {
   // path tracing
-  case VNR_PATHTRACING_DECODING:         program_pathtracing.render(framebuffer_stream, params, volume); break;
-  case VNR_PATHTRACING_SAMPLE_STREAMING: program_pathtracing.render(framebuffer_stream, params, volume, nvr, true); break;
-  case VNR_PATHTRACING_IN_SHADER:        program_pathtracing.render(framebuffer_stream, params, volume, nvr, false); break;
+  case VNR_PATHTRACING_DECODING:         program_pathtracing.render(framebuffer_stream, params, volume.d_pointer());             break;
+  case VNR_PATHTRACING_SAMPLE_STREAMING: program_pathtracing.render(framebuffer_stream, params, volume.d_pointer(), nvr, true);  break;
+  case VNR_PATHTRACING_IN_SHADER:        program_pathtracing.render(framebuffer_stream, params, volume.d_pointer(), nvr, false); break;
   // ray marching
-  case VNR_RAYMARCHING_NO_SHADING_DECODING:         program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::NO_SHADING); break;
-  case VNR_RAYMARCHING_NO_SHADING_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::NO_SHADING, nvr, true); break;
-  case VNR_RAYMARCHING_NO_SHADING_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::NO_SHADING, nvr, false); break;
+  case VNR_RAYMARCHING_NO_SHADING_DECODING:         program_raymarching.render(framebuffer_stream, params, MethodRayMarching::NO_SHADING, volume.d_pointer());             break;
+  case VNR_RAYMARCHING_NO_SHADING_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, MethodRayMarching::NO_SHADING, volume.d_pointer(), nvr, true);  break;
+  case VNR_RAYMARCHING_NO_SHADING_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, MethodRayMarching::NO_SHADING, volume.d_pointer(), nvr, false); break;
   // ray marching
-  case VNR_RAYMARCHING_GRADIENT_SHADING_DECODING:         program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::GRADIENT_SHADING); break;
-  case VNR_RAYMARCHING_GRADIENT_SHADING_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::GRADIENT_SHADING, nvr, true); break;
-  case VNR_RAYMARCHING_GRADIENT_SHADING_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::GRADIENT_SHADING, nvr, false); break;
+  case VNR_RAYMARCHING_GRADIENT_SHADING_DECODING:         program_raymarching.render(framebuffer_stream, params, MethodRayMarching::GRADIENT_SHADING, volume.d_pointer());             break;
+  case VNR_RAYMARCHING_GRADIENT_SHADING_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, MethodRayMarching::GRADIENT_SHADING, volume.d_pointer(), nvr, true);  break;
+  case VNR_RAYMARCHING_GRADIENT_SHADING_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, MethodRayMarching::GRADIENT_SHADING, volume.d_pointer(), nvr, false); break;
   // ray marching
-  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_DECODING:         program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::SINGLE_SHADE_HEURISTIC); break;
-  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::SINGLE_SHADE_HEURISTIC, nvr, true); break;
-  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, volume, MethodRayMarching::SINGLE_SHADE_HEURISTIC, nvr, false); break;
+  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_DECODING:         program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer());             break;
+  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer(), nvr, true);  break;
+  case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer(), nvr, false); break;
   // reference renderer
 #if defined(ENABLE_OPTIX)
   case VNR_OPTIX_NO_SHADING:             program_optix.render(framebuffer_stream, params, MethodOptiX::NO_SHADING);             break;
@@ -238,23 +235,6 @@ MainRenderer::set_scene(const cudaTextureObject_t& texture, ValueType type, vec3
   v.set_volume(texture, type, dims, range);
   v.set_macrocell(macrocell_dims, macrocell_spacings, macrocell_d_value_range, macrocell_d_max_opacity);
 
-  /* create geometries */
-  // const vec3i& block_dims = params.volume_block_dims;
-  // const vec3i& block_counts = params.volume_block_counts;
-  // BoxesGeometry b;
-  // b.matrix = affine3f::translate(translate);
-  // for (int bz = 0; bz < block_counts.z; ++bz) {
-  //   for (int by = 0; by < block_counts.y; ++by) {
-  //     for (int bx = 0; bx < block_counts.x; ++bx) {
-  //       b.add_cube(vec3f(block_dims) * (vec3f(bx, by, bz) + 0.5f), 0.5f * vec3f(block_dims));
-  //     }
-  //   }
-  // }
-  // boxes.push_back(b);
-  // 
-  // boxes.emplace_back();
-  // boxes.back().add_cube(vec3f(0.f, -dims.y, 0.f), vec3f(10000.f, 1.f, 10000.f));
-
   /* book keeping (might not be necessary) */
   framebuffer_reset = true;
 }
@@ -284,13 +264,6 @@ MainRenderer::init()
   {
     auto it = records.emplace(VOLUME_STRUCTURED_REGULAR, 1);
     it.first->second[0] = (void*)volume.get_sbt_pointer(optix_default_stream);
-  }
-  {
-    auto it = records.emplace(GEOMETRY_BOXES, boxes.size());
-    assert(it.second && "cannot create SBT for boxes geometry");
-    for (int i = 0; i < boxes.size(); ++i) {
-      it.first->second[i] = (void*)boxes[i].get_sbt_pointer(optix_default_stream);
-    }
   }
 
 #if defined(ENABLE_OPTIX)
@@ -373,21 +346,6 @@ MainRenderer::createBLAS()
     volume_instance.handler.sbtOffset = 0xFFFFFFFF; /* invalid */
     volume_instance.handler.flags = OPTIX_INSTANCE_FLAG_NONE;
     volume_instance.handler.traversableHandle = volume.buildas(optix_context, /*stream=*/0);
-  }
-
-  /*! create geometry ISA handlers */
-  for (int i = 0; i < boxes.size(); ++i) {
-    OptixProgram::InstanceHandler instance;
-    instance.type = GEOMETRY_BOXES;
-    instance.idx = i;
-    boxes[i].transform(instance.handler.transform);
-    instance.handler.instanceId = 1 + i;
-    instance.handler.visibilityMask = OptixVisibilityMask(VISIBILITY_MASK_GEOMETRY);
-    instance.handler.sbtOffset = 0xFFFFFFFF; /* invalid */
-    instance.handler.flags = OPTIX_INSTANCE_FLAG_NONE;
-    instance.handler.traversableHandle = boxes[i].buildas(optix_context, /*stream=*/0);
-
-    geometry_instances.push_back(instance);
   }
 }
 #endif
@@ -622,10 +580,10 @@ OptixProgram::createSBT(OptixDeviceContext optix_context, const std::map<ObjectT
       }
 
       sbt_offset_table[shaders.type][o] = sbt_offset;
-      sbt_offset += shaders.hitgroup.size();
+      sbt_offset += (int)shaders.hitgroup.size();
     }
 
-    shader_offset += shaders.hitgroup.size();
+    shader_offset += (int)shaders.hitgroup.size();
   }
 
 #if 0
@@ -679,7 +637,7 @@ OptixProgram::createTLAS(OptixDeviceContext optix_context,
       input = OptixBuildInput{};
       input.type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
       input.instanceArray.instances = ias[k].instances_buffer.d_pointer();
-      input.instanceArray.numInstances = ias[k].instances.size();
+      input.instanceArray.numInstances = (unsigned int)ias[k].instances.size();
     }
 
     ias[k].traversable = buildas_exec(optix_context, /*stream=*/0, inputs, ias[k].as_buffer);

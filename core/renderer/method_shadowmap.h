@@ -8,10 +8,13 @@
 
 INSTANT_VNR_NAMESPACE_BEGIN
 
-class MethodPathTracing
+class MethodShadowMap
 {
 public:
-  void render(cudaStream_t stream, const LaunchParams& params, DeviceVolume* volume, NeuralVolume* nvr = nullptr, bool iterative = false);
+  enum ShadingMode { NO_SHADING = 0, SHADING };
+
+  ~MethodShadowMap() { clear(0); }
+  void render(cudaStream_t stream, const LaunchParams& params, ShadingMode mode, DeviceVolume* volume, NeuralVolume* nvr = nullptr, bool iterative = false);
   void clear(cudaStream_t stream) { sample_streaming_buffer.free(stream); }
 
 private:

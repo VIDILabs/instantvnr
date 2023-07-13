@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.h"
+#include "core/instantvnr_types.h"
 
 namespace vnr {
 

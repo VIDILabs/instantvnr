@@ -10,7 +10,6 @@
 #include "raytracing.h"
 #include "dda.h"
 
-#include "../types.h"
 #include "../network.h"
 #ifdef ENABLE_IN_SHADER
 #include "../networks/tcnn_device_api.h"
@@ -22,18 +21,13 @@
 
 #include <cuda/cuda_buffer.h>
 
-#include <thrust/copy.h>
-#include <thrust/device_ptr.h>
-#include <thrust/execution_policy.h>
-#include <thrust/remove.h>
-
 #ifndef ADAPTIVE_SAMPLING
 #define ADAPTIVE_SAMPLING 1
 #endif
 
 namespace vnr {
 
-static int initialize_N_ITERS() 
+inline int initialize_N_ITERS() 
 {
   int n_iters = 16;
   if (const char* env_p = std::getenv("VNR_RM_N_ITERS")) {
@@ -98,7 +92,7 @@ struct RayMarchingData : LaunchParams
   float* __restrict__ jitter_ssh{ nullptr };
 };
 
-static __forceinline__ __device__ uint32_t 
+__forceinline__ __device__ uint32_t 
 new_ray_index(const RayMarchingData& params)
 {
   return atomicAdd(params.counter, 1);
@@ -183,7 +177,7 @@ do_raymarching_iterative(cudaStream_t stream, const RayMarchingData& params, Neu
 // ------------------------------------------------------------------
 
 template<typename T>
-static inline T* define_buffer(char* begin, size_t& offset, size_t buffer_size)
+inline T* define_buffer(char* begin, size_t& offset, size_t buffer_size)
 {
   auto* ret = (T*)(begin + offset); 
   offset += buffer_size * sizeof(T);
@@ -191,13 +185,13 @@ static inline T* define_buffer(char* begin, size_t& offset, size_t buffer_size)
 }
 
 void
-MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, StructuredRegularVolume& volume, ShadingMode mode, NeuralVolume* network, bool iterative)
+MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, ShadingMode mode, DeviceVolume* volume, NeuralVolume* network, bool iterative)
 {
   RayMarchingData params = _params;
 
-  const uint32_t numPixels = params.frame.size.long_product();
+  const uint32_t numPixels = (uint32_t)params.frame.size.long_product();
 
-  params.volume = (DeviceVolume*)volume.d_pointer();
+  params.volume = volume;
   params.mode = mode;
 
   if (iterative) {
@@ -926,7 +920,7 @@ iterative_sampling_batch_inference(cudaStream_t stream, uint32_t numRays, const 
   network->inference(numRays, (float*)params.inference_input, params.inference_output, stream);
 }
 
-static bool 
+inline bool 
 iterative_ray_compaction(cudaStream_t stream, uint32_t& count, uint32_t* dptr)
 {
   CUDA_CHECK(cudaMemcpyAsync(&count, dptr, sizeof(uint32_t), cudaMemcpyDeviceToHost, stream));
@@ -1197,19 +1191,19 @@ do_raymarching_network_template(cudaStream_t stream, const RayMarchingData& para
 
   if (WIDTH == 16) {
     TcnnDeviceVolume<16,N_FEATURES_PER_LEVEL> neuralvolume(network.get_network());
-    neuralvolume.launch(network_raymarching_kernel<TcnnDeviceVolume<16,N_FEATURES_PER_LEVEL>>, stream, params.frame.size.x, params.frame.size.y, params);
+    neuralvolume.launch2D(network_raymarching_kernel<TcnnDeviceVolume<16,N_FEATURES_PER_LEVEL>>, stream, params.frame.size.x, params.frame.size.y, params);
     return;
   }
 
   if (WIDTH == 32) {
     TcnnDeviceVolume<32,N_FEATURES_PER_LEVEL> neuralvolume(network.get_network());
-    neuralvolume.launch(network_raymarching_kernel<TcnnDeviceVolume<32,N_FEATURES_PER_LEVEL>>, stream, params.frame.size.x, params.frame.size.y, params); 
+    neuralvolume.launch2D(network_raymarching_kernel<TcnnDeviceVolume<32,N_FEATURES_PER_LEVEL>>, stream, params.frame.size.x, params.frame.size.y, params); 
     return;
   }
 
   if (WIDTH == 64) {
     TcnnDeviceVolume<64,N_FEATURES_PER_LEVEL> neuralvolume(network.get_network());
-    neuralvolume.launch(network_raymarching_kernel<TcnnDeviceVolume<64,N_FEATURES_PER_LEVEL>>, stream, params.frame.size.x, params.frame.size.y, params);
+    neuralvolume.launch2D(network_raymarching_kernel<TcnnDeviceVolume<64,N_FEATURES_PER_LEVEL>>, stream, params.frame.size.x, params.frame.size.y, params);
     return;
   }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../types.h"
+#include "../instantvnr_types.h"
 
 #include <algorithm>
 
@@ -248,8 +248,8 @@ shade_scivis_light(const vec3f& ray_dir, const vec3f& normal, const vec3f& albed
 // ------------------------------------------------------------------
 // Additional Sampling Functions
 // ------------------------------------------------------------------
-__device__ constexpr float one_over_pi = 1.f / M_PI;
-__device__ constexpr float four_pi = 4.f * M_PI;
+__device__ constexpr float one_over_pi = 1.f / (float)M_PI;
+__device__ constexpr float four_pi = 4.f * (float)M_PI;
 
 inline __device__ vec3f
 spherical_to_cartesian(const float phi, const float sinTheta, const float cosTheta)

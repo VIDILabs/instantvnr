@@ -1,12 +1,37 @@
 #pragma once
 
-#include "../types.h"
+#include "../instantvnr_types.h"
 
 #include <string>
 #include <vector>
 #include <map>
 
 namespace vnr {
+
+// ------------------------------------------------------------------
+// Object Definitions
+// ------------------------------------------------------------------
+
+enum ObjectType {
+  VOLUME_STRUCTURED_REGULAR,
+};
+
+#ifndef __NVCC__
+static std::string
+object_type_string(ObjectType t)
+{
+  switch (t) {
+  case VOLUME_STRUCTURED_REGULAR: return "VOLUME_STRUCTURED_REGULAR";
+  default: throw std::runtime_error("unknown object type");
+  }
+}
+#endif
+
+enum {
+  VISIBILITY_MASK_GEOMETRY = 0x1,
+  VISIBILITY_MASK_VOLUME = 0x2,
+};
+
 
 struct OptixProgram
 {

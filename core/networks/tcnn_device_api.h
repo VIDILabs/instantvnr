@@ -137,6 +137,10 @@ public:
   NetworkType* self;
 };
 
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
 template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH>
 struct DeviceNeuralVolume
 {
@@ -209,8 +213,12 @@ public:
     check();
   }
 
-  template<typename K, typename... Types>
-  void launch(K kernel, cudaStream_t stream, uint32_t width, uint32_t height, Types... args) const;
+  template<typename V, typename K, typename... Types>
+  void launch_general(const V& This, K kernel, cudaStream_t stream, uint32_t requested_batch_size, Types... args) const;
+
+  template<typename K, typename... Types> void launch1D(K kernel, cudaStream_t stream, int32_t width, Types... args) const;
+  template<typename K, typename... Types> void launch2D(K kernel, cudaStream_t stream, int32_t width, int32_t height, Types... args) const;
+  template<typename K, typename... Types> void launch3D(K kernel, cudaStream_t stream, int32_t width, int32_t height, int32_t depth, Types... args) const;
 
   __device__ __host__ const EncoderDeviceType& encoder() const { return m_encoder; }
   __device__ __host__ const NetworkDeviceType& network() const { return m_network; }
@@ -229,27 +237,20 @@ private:
 };
 
 template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH>
-template<typename K, typename... Types>
+template<typename V, typename K, typename... Types>
 void
-DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH>::launch(K kernel,
-                                                                       cudaStream_t stream,
-                                                                       uint32_t width,
-                                                                       uint32_t height,
-                                                                       Types... args) const
+DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH>::
+launch_general(const V& This, K kernel, cudaStream_t stream, const uint32_t requested_batch_size, Types... args) const
 {
   // clang-format off
   using namespace TCNN_NAMESPACE;
 
-  if (width <= 0 || height <= 0) {
-    return;
-  }
-
-  auto& enc = this->m_encoder;
+  // auto& enc = this->m_encoder;
   auto& mlp = this->m_network;
 
   /* calculate launch dimensions */
-  const uint32_t batch_size = next_multiple(width * height, (16 * N_ITERS * BLOCK_DIM_Z)); // = number of pixels
-  const uint32_t out_width  = 1;
+  const uint32_t batch_size = next_multiple(requested_batch_size, (16 * N_ITERS * BLOCK_DIM_Z)); // = number of pixels
+  // const uint32_t out_width  = 1;
   const uint32_t in_width   = mlp.n_input_width;
 
   static_assert(WIDTH % 16 == 0, "Width must be a multiply of 16.");
@@ -287,11 +288,41 @@ DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH>::launch(K kernel,
 
   TRACE_CUDA;
 
-  kernel<<<blocks, threads, shmem_size, stream>>>(*this, (uint32_t)width, (uint32_t)height, args...);
+  kernel<<<blocks, threads, shmem_size, stream>>>(This, args...);
 
   // clang-format on
 
   TRACE_CUDA;
+}
+
+template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH>
+template<typename K, typename... Types>
+void
+DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH>::
+launch1D(K kernel, cudaStream_t stream, int32_t width, Types... args) const
+{
+  if (width <= 0) { return; }
+  launch_general(*this, kernel, stream, (uint32_t)width, width, args...);
+}
+
+template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH>
+template<typename K, typename... Types>
+void
+DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH>::
+launch2D(K kernel, cudaStream_t stream, int32_t width, int32_t height, Types... args) const
+{
+  if (width <= 0 || height <= 0) { return; }
+  launch_general(*this, kernel, stream, (uint32_t)width*height, width, height, args...);
+}
+
+template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH>
+template<typename K, typename... Types>
+void
+DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH>::
+launch3D(K kernel, cudaStream_t stream, int32_t width, int32_t height, int32_t depth, Types... args) const
+{
+  if (width <= 0 || height <= 0 || depth <= 0) { return; }
+  launch_general(*this, kernel, stream, (uint32_t)width*height*depth, width, height, depth, args...);
 }
 
 constexpr static int TCNN_N_POS_DIMS = 3; // TODO find a better way

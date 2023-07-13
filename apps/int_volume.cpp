@@ -154,7 +154,7 @@ public:
   float density_scale() { return (m_density_scale) ? args::get(m_density_scale) : 1.f; }
   
   args::ValueFlag<int> m_rendering_mode;
-  float rendering_mode() { return (m_rendering_mode) ? args::get(m_rendering_mode) : 0; }
+  int rendering_mode() { return (m_rendering_mode) ? args::get(m_rendering_mode) : 0; }
 
   args::Flag force_camera;
   args::Flag report_rendering_fps;
@@ -596,10 +596,10 @@ public:
     std::vector<char> image((uint64_t)size.x*size.y*4);
     for (uint64_t i = 0; i < (uint64_t)size.x*size.y; ++i) {
       const auto in = pixels[i];
-      const uint32_t r(255.99f * clamp(in.x, 0.f, 1.f));
-      const uint32_t g(255.99f * clamp(in.y, 0.f, 1.f));
-      const uint32_t b(255.99f * clamp(in.z, 0.f, 1.f));
-      const uint32_t a(255.99f * clamp(in.w, 0.f, 1.f));
+      const uint32_t r = uint32_t(255.99f * clamp(in.x, 0.f, 1.f));
+      const uint32_t g = uint32_t(255.99f * clamp(in.y, 0.f, 1.f));
+      const uint32_t b = uint32_t(255.99f * clamp(in.z, 0.f, 1.f));
+      const uint32_t a = uint32_t(255.99f * clamp(in.w, 0.f, 1.f));
       image[4*i+0] = r;
       image[4*i+1] = g;
       image[4*i+2] = b;

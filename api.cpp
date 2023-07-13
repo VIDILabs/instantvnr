@@ -308,7 +308,7 @@ int vnrNeuralVolumeGetTrainingStep(vnrVolume self)
 {
   auto nv = castNeuralVolume(self);
   nv->neural.statistics(nv->stats);
-  return nv->stats.step;
+  return (int)nv->stats.step;
 }
 
 int vnrNeuralVolumeGetNumberOfBlobs(vnrVolume self)

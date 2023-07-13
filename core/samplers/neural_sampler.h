@@ -42,7 +42,7 @@ inline void random_dbuffer_uint64(uint64_t* d_buffer, size_t batch, uint64_t cou
 
 void generate_grid_coords(float* d_coords, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream);
 
-class RandomBuffer;
+struct RandomBuffer;
 
 struct StaticSampler : SamplerAPI
 {

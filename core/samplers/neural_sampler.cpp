@@ -143,14 +143,14 @@ static inline float
 read_typed_pointer(char* buffer, size_t id, ValueType type)
 {
   switch (type) {
-  case VALUE_TYPE_UINT8:  return ((uint8_t* )buffer)[id];
-  case VALUE_TYPE_INT8:   return ((int8_t*  )buffer)[id];
-  case VALUE_TYPE_UINT16: return ((uint16_t*)buffer)[id];
-  case VALUE_TYPE_INT16:  return ((int16_t* )buffer)[id]; 
-  case VALUE_TYPE_UINT32: return ((uint32_t*)buffer)[id];
-  case VALUE_TYPE_INT32:  return ((int32_t* )buffer)[id]; 
-  case VALUE_TYPE_FLOAT:  return ((float*   )buffer)[id];   
-  case VALUE_TYPE_DOUBLE: return ((double*  )buffer)[id];  
+  case VALUE_TYPE_UINT8:  return float(((uint8_t* )buffer)[id]);
+  case VALUE_TYPE_INT8:   return float(((int8_t*  )buffer)[id]);
+  case VALUE_TYPE_UINT16: return float(((uint16_t*)buffer)[id]);
+  case VALUE_TYPE_INT16:  return float(((int16_t* )buffer)[id]); 
+  case VALUE_TYPE_UINT32: return float(((uint32_t*)buffer)[id]);
+  case VALUE_TYPE_INT32:  return float(((int32_t* )buffer)[id]); 
+  case VALUE_TYPE_FLOAT:  return float(((float*   )buffer)[id]);   
+  case VALUE_TYPE_DOUBLE: return float(((double*  )buffer)[id]);  
   default: throw std::runtime_error("unknown data type");
   }
 }
@@ -337,7 +337,7 @@ to_grid_index(size_t index, vec3i grid)
 {
   const auto stride_y = (size_t)grid.x;
   const auto stride_z = (size_t)grid.y * (size_t)grid.x;
-  return vec3i(index % stride_y, (index % stride_z) / stride_y, index / stride_z);
+  return vec3i((int)(index % stride_y), (int)((index % stride_z) / stride_y), (int)(index / stride_z));
 }
 
 static size_t
@@ -534,7 +534,7 @@ public:
     ASSERT_THROW(STREAM_SIZE % element_size == 0, "[aio] bad stream alignment");
     {
       block_dims.x = fdims.x;
-      block_dims.y = min(div_round_up(STREAM_SIZE, (uint64_t)fdims.x*element_size), (uint64_t)fdims.y);
+      block_dims.y = (int)min(div_round_up(STREAM_SIZE, (uint64_t)fdims.x*element_size), (uint64_t)fdims.y);
       block_dims.z = min(1, fdims.z);
 
       block_dims_with_ghosts.x = block_dims.x;
@@ -561,7 +561,7 @@ public:
 #endif
 
     log() << "[aio] preloading " << NUM_BLOCKS << " blocks" << std::endl;
-    for (int i = 0; i < NUM_BLOCKS; i += NUM_CONCURRENT_BLOCKS) {
+    for (uint64_t i = 0; i < NUM_BLOCKS; i += NUM_CONCURRENT_BLOCKS) {
       submit_all_jobs(i);
       wait_all_jobs();
     }
@@ -1019,10 +1019,10 @@ sample_streaming_grid(void* d_coords,
   const auto fdims = vec3f(m_dims);
   tbb::parallel_for(size_t(0), batch_size, [&](size_t i) {
     const uint64_t stride = (uint64_t)grid_dims.x * grid_dims.y;
-    const int32_t x = grid_origin.x +  i % grid_dims.x;
-    const int32_t y = grid_origin.y + (i % stride) / grid_dims.x;
-    const int32_t z = grid_origin.z +  i / stride;
-    const vec3f fp = (vec3f(x,y,z) + 0.5f) * grid_spacing; // sample within [0,1)^3 
+    const int32_t x = grid_origin.x +  (int)(i % grid_dims.x);
+    const int32_t y = grid_origin.y + (int)((i % stride) / grid_dims.x);
+    const int32_t z = grid_origin.z +  (int)(i / stride);
+    const vec3f fp = (vec3f((float)x,(float)y,(float)z) + 0.5f) * grid_spacing; // sample within [0,1)^3 
     const vec3f ccp = clamp(fp * fdims, vec3f(0.5f), fdims-0.5f);
     m_values[i] = trilinear ? trilinear_vkl(ccp, m_dims, accessor) : nearest_vkl(ccp, m_dims, accessor);
   });
@@ -1085,10 +1085,10 @@ OutOfCoreSampler::sample(void* d_coord, void* d_value, size_t batch_size, const 
   randbuf.wait_all_jobs();
 
   tbb::parallel_for(size_t(0), batch_size, [&](size_t i) {
-    const uint64_t bidx = m_random_bidx[i] * randbuf.NUM_BLOCKS;
+    const uint64_t bidx = uint64_t(m_random_bidx[i] * (float)randbuf.NUM_BLOCKS);
     ASSERT_THROW(bidx < randbuf.NUM_BLOCKS, "[aio] invalid block index");
 
-    const uint64_t vidx = m_random_vidx[i] * randbuf.blocks[bidx].length;
+    const uint64_t vidx = uint64_t(m_random_vidx[i] * (float)randbuf.blocks[bidx].length);
     ASSERT_THROW(vidx < randbuf.blocks[bidx].length, "[aio] invalid voxel index");
 
     // find the point index

@@ -63,8 +63,9 @@ if(OVR_BUILD_MODULE_NNVOLUME)
   set(ENABLE_OUT_OF_CORE ON)
   set(ENABLE_OPTIX  ON)
   set(ENABLE_OPENGL ON)
+
   add_subdirectory(core)
-  add_subdirectory(shadowmap)
+  add_subdirectory(device)
   add_subdirectory(apps)
 
 endif()

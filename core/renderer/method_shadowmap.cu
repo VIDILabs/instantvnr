@@ -6,51 +6,41 @@
 //.                                                                          //
 //. ======================================================================== //
 
-#include "method_raymarching.h"
+#include "method_shadowmap.h"
 #include "raytracing.h"
 #include "dda.h"
 
-#include "core/types.h"
-#include "core/network.h"
-
 #include <cuda/cuda_buffer.h>
 
-#include <thrust/copy.h>
-#include <thrust/device_ptr.h>
-#include <thrust/execution_policy.h>
-#include <thrust/remove.h>
+// #include <thrust/copy.h>
+// #include <thrust/device_ptr.h>
+// #include <thrust/execution_policy.h>
+// #include <thrust/remove.h>
 
 #ifndef ADAPTIVE_SAMPLING
 #define ADAPTIVE_SAMPLING 1
 #endif
 
-using vnr::lerp;
 
-namespace ovr { 
-namespace nnvolume {
+INSTANT_VNR_NAMESPACE_BEGIN
 
-static int initialize_N_ITERS() 
-{
-  int n_iters = 16;
-  if (const char* env_p = std::getenv("VNR_RM_N_ITERS")) {
-    n_iters = std::stoi(env_p);
-  }
-  return n_iters;
-}
+constexpr auto N_ITERS = 16;
 
-const int N_ITERS = initialize_N_ITERS();
+using ShadingMode = MethodShadowMap::ShadingMode;
+constexpr auto NO_SHADING = MethodShadowMap::NO_SHADING;
+constexpr auto SHADING    = MethodShadowMap::SHADING;
 
-using ShadingMode = MethodRayMarching::ShadingMode;
-constexpr auto NO_SHADING = MethodRayMarching::NO_SHADING;
-constexpr auto SHADING    = MethodRayMarching::SHADING;
+// using vnr::SciVisMaterial;
 
-using vnr::SciVisMaterial;
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
 
 // NOTE: what is the best SoA layout here?
 
-struct RayMarchingData : LaunchParams
+struct ShadowMapData : LaunchParams
 {
-  RayMarchingData(const LaunchParams& p) : LaunchParams(p) {}
+  ShadowMapData(const LaunchParams& p) : LaunchParams(p) {}
 
   ShadingMode mode;
 
@@ -86,11 +76,40 @@ struct RayMarchingData : LaunchParams
   float* __restrict__ jitter_ssh{ nullptr };
 };
 
-static __forceinline__ __device__ uint32_t 
-new_ray_index(const RayMarchingData& params)
+/* standard version */ void
+do_raymarching_trivial(cudaStream_t stream, const ShadowMapData& params);
+
+/* iterative version */ void
+do_raymarching_iterative(cudaStream_t stream, const ShadowMapData& params, NeuralVolume* network, uint32_t numPixels);
+
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
+namespace {
+
+// ------------------------------------------------------------------
+
+
+// ------------------------------------------------------------------
+
+inline __device__ uint32_t 
+new_ray_index(const ShadowMapData& params)
 {
   return atomicAdd(params.counter, 1);
 }
+
+template<typename T>
+inline T* define_buffer(char* begin, size_t& offset, size_t buffer_size)
+{
+  auto* ret = (T*)(begin + offset); 
+  offset += buffer_size * sizeof(T);
+  return ret;
+}
+
+// -------
+//
+// -------
 
 struct Ray 
 {
@@ -99,6 +118,10 @@ struct Ray
   float alpha = 0.f;
   vec3f color = 0.f; // not used by shadow rays
 };
+
+// -------
+//
+// -------
 
 struct RayMarchingIter 
 #if ADAPTIVE_SAMPLING
@@ -121,6 +144,81 @@ struct RayMarchingIter
   __device__ void exec(const DeviceVolume& self, const vec3f& org, const vec3f& dir, const float tMin, const float tMax, const float step, const uint32_t pidx, const F& body);
 };
 
+__device__
+RayMarchingIter::RayMarchingIter(const DeviceVolume& self, const vec3f& org, const vec3f& dir, const float tMin, const float tMax)
+{
+#if ADAPTIVE_SAMPLING
+  const auto& dims = self.macrocell_dims;
+  const vec3f m_org = org * self.macrocell_spacings_rcp;
+  const vec3f m_dir = dir * self.macrocell_spacings_rcp;
+  DDAIter::init(m_org, m_dir, tMin, tMax, dims);
+#endif
+}
+
+template<typename F>
+__device__ void
+RayMarchingIter::exec(const DeviceVolume& self, const vec3f& org, const vec3f& dir, const float tMin, const float tMax, const float step, const uint32_t pidx, const F& body)
+{
+#if ADAPTIVE_SAMPLING
+
+  const auto& dims = self.macrocell_dims;
+  const vec3f m_org = org * self.macrocell_spacings_rcp;
+  const vec3f m_dir = dir * self.macrocell_spacings_rcp;
+
+  const auto lambda = [&](const vec3i& cell, float t0, float t1) {
+    // calculate max opacity
+    float r = opacityUpperBound(self, cell);
+    if (fabsf(r) <= float_epsilon) return true; // the cell is empty
+    // estimate a step size
+    const auto ss = adaptiveSamplingRate(step, r);
+    // iterate within the interval
+    vec2f t = vec2f(t0, min(t1, t0 + ss));
+    while (t.y > t.x) {
+      DDAIter::next_cell_begin = t.y - tMin;
+      if (!body(t)) return false;
+      t.x = t.y;
+      t.y = min(t.x + ss, t1);
+    }
+    return true;
+  };
+
+  while (DDAIter::next(m_org, m_dir, tMin, tMax, dims, false, lambda)) {}
+
+#else
+
+  vec2f t;
+  t.x = max(tMin + next_cell_begin, tMin);
+  t.y = min(t.x + step, tMax);
+  while (t.y > t.x) {
+    next_cell_begin = t.y - tMin;
+    if (!body(t)) return;
+    t.x = t.y;
+    t.y = min(t.x + step, tMax);
+  }
+
+  next_cell_begin = float_large;
+  return;
+
+#endif
+}
+
+bool __device__
+RayMarchingIter::resumable(const DeviceVolume& self, vec3f dir, float tMin, float tMax)
+{
+#if ADAPTIVE_SAMPLING
+  const auto& dims = self.macrocell_dims;
+  const vec3f m_dir = dir * self.macrocell_spacings_rcp;
+  return DDAIter::resumable(m_dir, tMin, tMax, dims);
+#else
+  return tMin + next_cell_begin < tMax;
+#endif
+}
+
+
+// -------
+//
+// -------
+
 struct SampleStreamingPayload
 {
 public:
@@ -137,49 +235,86 @@ private:
 
 public:
   __device__ SampleStreamingPayload(const uint32_t pixel_index, const float jitter) : pixel_index(pixel_index), jitter(jitter), color(0) {}
-  __device__ SampleStreamingPayload(const RayMarchingData& params, const uint32_t ray_index); // load a payload from memory
-  __device__ void save(const RayMarchingData& params, uint32_t ridx) const;
-  __device__ void as_camera_ray(const vec3f& c, const float& a) { color = c, alpha = a; }
-  __device__ void as_shadow_ray(const vec3f& o) { org = o; }
-  __device__ void set_ray(const Ray& ray);
-  __device__ Ray compute_ray(const RayMarchingData& params) const;
+  __device__ SampleStreamingPayload(const ShadowMapData& params, const uint32_t ray_index); // load a payload from memory
+  __device__ void save(const ShadowMapData& params, uint32_t ridx) const;
+  // __device__ void as_camera_ray(const vec3f& c, const float& a) { color = c, alpha = a; }
+  // __device__ void as_shadow_ray(const vec3f& o) { org = o; }
+  __device__ void set_ray(const Ray& ray) { alpha = ray.alpha, color = ray.color; }
+  __device__ Ray compute_ray(const ShadowMapData& params) const;
 };
 
-__device__ void SampleStreamingPayload::set_ray(const Ray& ray) { alpha = ray.alpha, color = ray.color; }
-
-struct SingleShotPayload
+__device__
+SampleStreamingPayload::SampleStreamingPayload(const ShadowMapData& params, const uint32_t ray_index) 
 {
-  vec3f highest_org = 0.f;
-  vec3f highest_color = 0.f;
-  float highest_alpha = 0.f;
-};
+  pixel_index = params.pixel_index[ray_index];
+  jitter = params.jitter[ray_index];
+  alpha = params.alpha[ray_index];
+  color = params.color_or_org[ray_index];
+#if ADAPTIVE_SAMPLING
+  iter.cell = params.iter_cell[ray_index];
+  iter.t_next = params.iter_t_next[ray_index];
+#endif
+  iter.next_cell_begin = params.iter_next_cell_begin[ray_index];
+}
 
-/* standard version */ void
-do_raymarching_trivial(cudaStream_t stream, const RayMarchingData& params);
+__device__ void
+SampleStreamingPayload::save(const ShadowMapData& params, uint32_t ridx) const
+{
+  params.pixel_index[ridx] = pixel_index;
+  params.jitter[ridx] = jitter;
+  params.alpha[ridx] = alpha;
+  params.color_or_org[ridx] = color;
+#if ADAPTIVE_SAMPLING
+  params.iter_cell[ridx] = iter.cell;
+  params.iter_t_next[ridx] = iter.t_next;
+#endif
+  params.iter_next_cell_begin[ridx] = iter.next_cell_begin;
+}
 
-/* iterative version */ void
-do_raymarching_iterative(cudaStream_t stream, const RayMarchingData& params, NeuralVolume* network, uint32_t numPixels);
+__device__ Ray 
+SampleStreamingPayload::compute_ray(const ShadowMapData& params) const
+{
+  const auto& fbIndex = pixel_index;
+
+  // compute pixel ID
+  const uint32_t ix = fbIndex % params.frame.size.x;
+  const uint32_t iy = fbIndex / params.frame.size.x;
+
+  // normalized screen plane position, in [0,1]^2
+  const auto& camera = params.camera;
+  const vec2f screen(vec2f((float)ix + .5f, (float)iy + .5f) / vec2f(params.frame.size));
+
+  // get the object to world transformation
+  const affine3f& otw = params.transform;
+  const affine3f wto = otw.inverse();
+
+  // generate ray direction
+  Ray ray;
+  ray.org = xfmPoint(wto, camera.position);
+  ray.dir = xfmVector(wto, normalize(/* -z axis */ camera.direction +
+                                     /* x shift */ (screen.x - 0.5f) * camera.horizontal +
+                                     /* y shift */ (screen.y - 0.5f) * camera.vertical));
+  ray.alpha = alpha;
+  ray.color = color;
+  return ray;
+}
+
+// ------------------------------------------------------------------
+
+}
 
 // ------------------------------------------------------------------
 //
 // ------------------------------------------------------------------
 
-template<typename T>
-static inline T* define_buffer(char* begin, size_t& offset, size_t buffer_size)
-{
-  auto* ret = (T*)(begin + offset); 
-  offset += buffer_size * sizeof(T);
-  return ret;
-}
-
 void
-MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, StructuredRegularVolume& volume, ShadingMode mode, NeuralVolume* network, bool iterative)
+MethodShadowMap::render(cudaStream_t stream, const LaunchParams& _params, ShadingMode mode, DeviceVolume* volume, NeuralVolume* network, bool iterative)
 {
-  RayMarchingData params = _params;
+  ShadowMapData params = _params;
 
-  const uint32_t numPixels = params.frame.size.long_product();
+  const uint32_t numPixels = (uint32_t)params.frame.size.long_product();
 
-  params.volume = (DeviceVolume*)volume.d_pointer();
+  params.volume = volume;
   params.mode = mode;
 
   if (iterative) {
@@ -276,7 +411,7 @@ raymarching_iterator(const DeviceVolume& self,
 
 inline __device__ float
 raymarching_transmittance(const DeviceVolume& self,
-                          const RayMarchingData& params,
+                          const ShadowMapData& params,
                           const vec3f& org, const vec3f& dir,
                           float t0, float t1,
                           float sampling_scale,
@@ -330,7 +465,7 @@ shade_scivis_light(const vec3f& ray_dir, const vec3f& normal, const vec3f& albed
 
 inline __device__ vec4f
 raymarching_traceray(const DeviceVolume& self,
-                     const RayMarchingData& params,
+                     const ShadowMapData& params,
                      const affine3f& wto, // world to object
                      const affine3f& otw, // object to world
                      const Ray& ray, float t0, float t1,
@@ -338,7 +473,7 @@ raymarching_traceray(const DeviceVolume& self,
 {
   const auto& marchingStep = self.step;
   const auto& gradientStep = self.grad_step;
-  const auto& shadingScale = params.scivis_shading_scale;
+  // const auto& shadingScale = params.scivis_shading_scale;
 
   float alpha(0);
   vec3f color(0);
@@ -378,26 +513,6 @@ raymarching_traceray(const DeviceVolume& self,
       const float transmittance = raymarching_transmittance(self, params, p, ldir, 0.f, float_large, /*make baseline more expensive...*/ 1.0, rng);
       sampleColor = lerp(0.8, sampleColor, transmittance * sampleColor);
 
-      // // compute shading
-      // if (params.mode == GRADIENT_SHADING) {
-      //   const auto dir = xfmVector(otw, ray.dir);
-      //   const vec3f shadingColor = shade_scivis_light(dir, Nw, sampleColor, 
-      //                                                 params.mat_gradient_shading, 
-      //                                                 params.light_ambient, 
-      //                                                 params.light_directional_rgb, 
-      //                                                 params.light_directional_dir);
-      //   sampleColor = lerp(shadingScale, sampleColor, shadingColor);
-      // }
-      // else if (params.mode == SINGLE_SHADE_HEURISTIC) {
-      //   // remember point of highest density for deferred shading
-      //   if (highestAlpha < (1.f - alpha) * sampleAlpha) {
-      //     highestOrg = p; // object space
-      //     highestColor = sampleColor;
-      //     highestAlpha = (1.f - alpha) * sampleAlpha;
-      //   }
-      //   // gradient += tr * Nw; // accumulate gradient for SSH
-      // }
-
       color += tr * sampleColor * sampleAlpha;
       alpha += tr * sampleAlpha;
 
@@ -410,7 +525,7 @@ raymarching_traceray(const DeviceVolume& self,
 }
 
 __global__ void
-raymarching_kernel(uint32_t width, uint32_t height, const RayMarchingData params)
+raymarching_kernel(uint32_t width, uint32_t height, const ShadowMapData params)
 {
   // compute pixel ID
   const size_t ix = threadIdx.x + blockIdx.x * blockDim.x;
@@ -452,7 +567,7 @@ raymarching_kernel(uint32_t width, uint32_t height, const RayMarchingData params
 }
 
 void
-do_raymarching_trivial(cudaStream_t stream, const RayMarchingData& params)
+do_raymarching_trivial(cudaStream_t stream, const ShadowMapData& params)
 {
   util::bilinear_kernel(raymarching_kernel, 0, stream, params.frame.size.x, params.frame.size.y, params);
 }
@@ -463,134 +578,8 @@ do_raymarching_trivial(cudaStream_t stream, const RayMarchingData& params)
 //
 // ------------------------------------------------------------------------------
 
-__device__
-RayMarchingIter::RayMarchingIter(const DeviceVolume& self, const vec3f& org, const vec3f& dir, const float tMin, const float tMax)
-{
-#if ADAPTIVE_SAMPLING
-  const auto& dims = self.macrocell_dims;
-  const vec3f m_org = org * self.macrocell_spacings_rcp;
-  const vec3f m_dir = dir * self.macrocell_spacings_rcp;
-  DDAIter::init(m_org, m_dir, tMin, tMax, dims);
-#endif
-}
-
-template<typename F>
-__device__ void
-RayMarchingIter::exec(const DeviceVolume& self, const vec3f& org, const vec3f& dir, const float tMin, const float tMax, const float step, const uint32_t pidx, const F& body)
-{
-#if ADAPTIVE_SAMPLING
-
-  const auto& dims = self.macrocell_dims;
-  const vec3f m_org = org * self.macrocell_spacings_rcp;
-  const vec3f m_dir = dir * self.macrocell_spacings_rcp;
-
-  const auto lambda = [&](const vec3i& cell, float t0, float t1) {
-    // calculate max opacity
-    float r = opacityUpperBound(self, cell);
-    if (fabsf(r) <= float_epsilon) return true; // the cell is empty
-    // estimate a step size
-    const auto ss = adaptiveSamplingRate(step, r);
-    // iterate within the interval
-    vec2f t = vec2f(t0, min(t1, t0 + ss));
-    while (t.y > t.x) {
-      DDAIter::next_cell_begin = t.y - tMin;
-      if (!body(t)) return false;
-      t.x = t.y;
-      t.y = min(t.x + ss, t1);
-    }
-    return true;
-  };
-
-  while (DDAIter::next(m_org, m_dir, tMin, tMax, dims, false, lambda)) {}
-
-#else
-
-  vec2f t;
-  t.x = max(tMin + next_cell_begin, tMin);
-  t.y = min(t.x + step, tMax);
-  while (t.y > t.x) {
-    next_cell_begin = t.y - tMin;
-    if (!body(t)) return;
-    t.x = t.y;
-    t.y = min(t.x + step, tMax);
-  }
-
-  next_cell_begin = float_large;
-  return;
-
-#endif
-}
-
-bool __device__
-RayMarchingIter::resumable(const DeviceVolume& self, vec3f dir, float tMin, float tMax)
-{
-#if ADAPTIVE_SAMPLING
-  const auto& dims = self.macrocell_dims;
-  const vec3f m_dir = dir * self.macrocell_spacings_rcp;
-  return DDAIter::resumable(m_dir, tMin, tMax, dims);
-#else
-  return tMin + next_cell_begin < tMax;
-#endif
-}
-
-__device__
-SampleStreamingPayload::SampleStreamingPayload(const RayMarchingData& params, const uint32_t ray_index) 
-{
-  pixel_index = params.pixel_index[ray_index];
-  jitter = params.jitter[ray_index];
-  alpha = params.alpha[ray_index];
-  color = params.color_or_org[ray_index];
-#if ADAPTIVE_SAMPLING
-  iter.cell = params.iter_cell[ray_index];
-  iter.t_next = params.iter_t_next[ray_index];
-#endif
-  iter.next_cell_begin = params.iter_next_cell_begin[ray_index];
-}
-
-__device__ void
-SampleStreamingPayload::save(const RayMarchingData& params, uint32_t ridx) const
-{
-  params.pixel_index[ridx] = pixel_index;
-  params.jitter[ridx] = jitter;
-  params.alpha[ridx] = alpha;
-  params.color_or_org[ridx] = color;
-#if ADAPTIVE_SAMPLING
-  params.iter_cell[ridx] = iter.cell;
-  params.iter_t_next[ridx] = iter.t_next;
-#endif
-  params.iter_next_cell_begin[ridx] = iter.next_cell_begin;
-}
-
-__device__ Ray 
-SampleStreamingPayload::compute_ray(const RayMarchingData& params) const
-{
-  const auto& fbIndex = pixel_index;
-
-  // compute pixel ID
-  const uint32_t ix = fbIndex % params.frame.size.x;
-  const uint32_t iy = fbIndex / params.frame.size.x;
-
-  // normalized screen plane position, in [0,1]^2
-  const auto& camera = params.camera;
-  const vec2f screen(vec2f((float)ix + .5f, (float)iy + .5f) / vec2f(params.frame.size));
-
-  // get the object to world transformation
-  const affine3f& otw = params.transform;
-  const affine3f wto = otw.inverse();
-
-  // generate ray direction
-  Ray ray;
-  ray.org = xfmPoint(wto, camera.position);
-  ray.dir = xfmVector(wto, normalize(/* -z axis */ camera.direction +
-                                     /* x shift */ (screen.x - 0.5f) * camera.horizontal +
-                                     /* y shift */ (screen.y - 0.5f) * camera.vertical));
-  ray.alpha = alpha;
-  ray.color = color;
-  return ray;
-}
-
 __global__ void
-iterative_intersect_kernel(uint32_t numRays, const RayMarchingData params, int N_ITERS)
+iterative_intersect_kernel(uint32_t numRays, const ShadowMapData params, int N_ITERS)
 {
   const uint32_t i = threadIdx.x + blockIdx.x * blockDim.x;
   if (i >= numRays) return;
@@ -620,13 +609,13 @@ iterative_intersect_kernel(uint32_t numRays, const RayMarchingData params, int N
 
 template<ShadingMode MODE> 
 __global__ void
-iterative_compose_kernel(uint32_t numRays, const RayMarchingData params, int N_ITERS)
+iterative_compose_kernel(uint32_t numRays, const ShadowMapData params, int N_ITERS)
 {
   const uint32_t i = threadIdx.x + blockIdx.x * blockDim.x;
   if (i >= numRays) return;
 
   const auto& self = *(params.volume);
-  const auto& shadingScale = params.scivis_shading_scale;
+  // const auto& shadingScale = params.scivis_shading_scale;
   const auto* __restrict__ shadingCoefs = params.inference_output;
 
   SampleStreamingPayload payload(params, i);
@@ -683,7 +672,7 @@ iterative_compose_kernel(uint32_t numRays, const RayMarchingData params, int N_I
 }
 
 __global__ void
-iterative_raygen_kernel_camera(uint32_t numRays, const RayMarchingData params) 
+iterative_raygen_kernel_camera(uint32_t numRays, const ShadowMapData params) 
 {
   // compute ray ID
   const uint32_t i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -711,7 +700,7 @@ iterative_raygen_kernel_camera(uint32_t numRays, const RayMarchingData params)
 }
 
 __global__ void
-iterative_sampling_groundtruth_kernel(uint32_t numRays, const RayMarchingData params)
+iterative_sampling_groundtruth_kernel(uint32_t numRays, const ShadowMapData params)
 {
   const uint32_t i = threadIdx.x + blockIdx.x * blockDim.x;
   if (i >= numRays) return;
@@ -726,12 +715,12 @@ iterative_sampling_groundtruth_kernel(uint32_t numRays, const RayMarchingData pa
 }
 
 void
-iterative_sampling_batch_inference(cudaStream_t stream, uint32_t numRays, const RayMarchingData& params, NeuralVolume* network)
+iterative_sampling_batch_inference(cudaStream_t stream, uint32_t numRays, const ShadowMapData& params, NeuralVolume* network)
 {
   network->inference(numRays, (float*)params.inference_input, params.inference_output, stream);
 }
 
-static bool 
+inline bool 
 iterative_ray_compaction(cudaStream_t stream, uint32_t& count, uint32_t* dptr)
 {
   CUDA_CHECK(cudaMemcpyAsync(&count, dptr, sizeof(uint32_t), cudaMemcpyDeviceToHost, stream));
@@ -740,7 +729,7 @@ iterative_ray_compaction(cudaStream_t stream, uint32_t& count, uint32_t* dptr)
 }
 
 template<ShadingMode MODE> 
-void iterative_raymarching_loop(cudaStream_t stream, const RayMarchingData& params, NeuralVolume* network, uint32_t numRays)
+void iterative_raymarching_loop(cudaStream_t stream, const ShadowMapData& params, NeuralVolume* network, uint32_t numRays)
 {
   const uint32_t numCoordsPerSample = N_ITERS;
 
@@ -764,7 +753,7 @@ void iterative_raymarching_loop(cudaStream_t stream, const RayMarchingData& para
 }
 
 void
-do_raymarching_iterative(cudaStream_t stream, const RayMarchingData& params, NeuralVolume* network, uint32_t numRays)
+do_raymarching_iterative(cudaStream_t stream, const ShadowMapData& params, NeuralVolume* network, uint32_t numRays)
 {
   if (params.mode == NO_SHADING)
     iterative_raymarching_loop<NO_SHADING>(stream, params, network, numRays);
@@ -772,5 +761,4 @@ do_raymarching_iterative(cudaStream_t stream, const RayMarchingData& params, Neu
     iterative_raymarching_loop<SHADING>(stream, params, network, numRays);
 }
 
-}
-} // namespace vnr
+INSTANT_VNR_NAMESPACE_END

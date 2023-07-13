@@ -242,35 +242,6 @@ MeshGeometry::buildas(OptixDeviceContext optixContext, cudaStream_t stream)
 //
 // ------------------------------------------------------------------
 
-CUdeviceptr
-BoxesGeometry::get_sbt_pointer(cudaStream_t stream)
-{
-  if (!GetSbtPtr()) {
-    vertex.shrink_to_fit();
-    index.shrink_to_fit();
-
-    // colorBuffer.resize(num_boxes * sizeof(vec3f), stream);
-    // CUDA_CHECK(cudaMemsetAsync((void*)colorBuffer.d_pointer(), 0, colorBuffer.sizeInBytes, stream));
-
-    self.vertex = (vec3f*)vertexBuffer.d_pointer();
-    self.index = (vec3i*)indexBuffer.d_pointer();
-    // self.per_box_color = (vec3f*)colorBuffer.d_pointer();
-
-    return CreateSbtPtr(stream); /* upload to GPU */
-  }
-  return GetSbtPtr();
-}
-
-void
-BoxesGeometry::commit(cudaStream_t stream)
-{
-  UpdateSbtData(stream);
-}
-
-// ------------------------------------------------------------------
-//
-// ------------------------------------------------------------------
-
 StructuredRegularVolume::~StructuredRegularVolume()
 {
   if (tfn_color_array_handler) {

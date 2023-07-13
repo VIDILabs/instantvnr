@@ -22,7 +22,6 @@
 //. ======================================================================== //
 
 #include "method_optix.h"
-#include "../renderer.h"
 
 namespace vnr {
 
@@ -58,23 +57,6 @@ MethodOptiX::MethodOptiX() : OptixProgram(embedded_ptx_code_optix, RAY_TYPE_COUN
 
     shader_objects.push_back(group);
   }
-
-  // {
-  //   OptixProgram::ObjectGroup group;
-  //   group.type = GEOMETRY_BOXES;
-  // 
-  //   s.shader_CH = "__closesthit__boxes_geometry_radiance";
-  //   s.shader_AH = "__anyhit__boxes_geometry_radiance";
-  //   s.shader_IS = "";
-  //   group.hitgroup.push_back(s);
-  // 
-  //   s.shader_CH = "__closesthit__boxes_geometry_shadow";
-  //   s.shader_AH = "__anyhit__boxes_geometry_shadow";
-  //   s.shader_IS = "";
-  //   group.hitgroup.push_back(s);
-  // 
-  //   shader_objects.push_back(group);
-  // }
 
   params_buffer.resize(sizeof(DefaultUserData), /*stream=*/0);
 }

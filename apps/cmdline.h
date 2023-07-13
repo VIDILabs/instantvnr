@@ -21,14 +21,14 @@ struct Vec3fReader
     auto curr = value.substr(0, value.find_first_of(','));
     value = value.substr(value.find_first_of(',') + 1);
 
-    destination.x = std::stod(curr);
+    destination.x = std::stof(curr);
 
     curr = value.substr(0, value.find_first_of(','));
     value = value.substr(value.find_first_of(',') + 1);
 
-    destination.y = std::stod(curr);
+    destination.y = std::stof(curr);
 
-    destination.z = std::stod(value);
+    destination.z = std::stof(value);
   }
 };
 

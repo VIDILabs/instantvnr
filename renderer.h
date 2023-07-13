@@ -28,10 +28,10 @@
 #include "framebuffer.h"
 
 #if defined(ENABLE_OPTIX)
-#include "renderer/method_optix.h"
+#include "core/renderer/method_optix.h"
 #endif
-#include "renderer/method_raymarching.h"
-#include "renderer/method_pathtracing.h"
+#include "core/renderer/method_raymarching.h"
+#include "core/renderer/method_pathtracing.h"
 
 #include <array>
 #include <cstring>
@@ -81,10 +81,15 @@ public:
 
   void set_scene_clipbox(const box3f& clip);
 
-  void mapframe(vec4f** h_pixels)
+  void mapframe(vec4f** pixels)
   {
     CUDA_CHECK(cudaStreamSynchronize(framebuffer_stream));
-    *h_pixels = framebuffer.host_pointer();
+    if (framebuffer_skip_download) {
+      *pixels = framebuffer.device_pointer();
+    }
+    else {
+      *pixels = framebuffer.host_pointer();
+    }
     framebuffer.safe_swap();
   }
 
@@ -107,7 +112,11 @@ public:
   }
 
   /*! set camera to render with */
-  void set_camera(vec3f from, vec3f at, vec3f up) { set_camera(Camera{ from, at, up }); }
+  void set_camera(vec3f from, vec3f at, vec3f up) 
+  { 
+    set_camera(Camera{ from, at, up }); 
+  }
+
   void set_camera(const Camera& camera)
   {
     camera_latest = camera;
@@ -148,7 +157,13 @@ public:
 #endif
   }
 
+  void set_output_as_cuda_framebuffer() { framebuffer_skip_download = true; }
+
+  const StructuredRegularVolume& get_volume() const { return volume; }
+  StructuredRegularVolume&       get_volume()       { return volume; }
+
   void reset_frame() { framebuffer_reset = true; }
+
 
   // ------------------------------------------------------------------
   // internal helper functions
@@ -197,7 +212,6 @@ protected:
   /*! we handle one volume and multiple geometries potentially */
   const cudaTextureObject_t* p_volume_data_texture{nullptr};
   StructuredRegularVolume volume;
-  std::vector<BoxesGeometry> boxes;
 
 #if defined(ENABLE_OPTIX)
   OptixProgram::InstanceHandler volume_instance;                 /*! the ISA handlers */
@@ -209,6 +223,7 @@ protected:
   cudaStream_t framebuffer_stream{};
   bool framebuffer_reset{ true };
   CUDABuffer framebuffer_accumulation;
+  bool framebuffer_skip_download{ false };
 
   /*! the camera we are to render with. */
   Camera camera_latest;

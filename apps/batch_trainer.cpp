@@ -23,7 +23,7 @@ using Logger = vidi::CsvLogger;
 
 #define BAD_LOSS 0.9f
 
-static float estpsnr(float l1) { return -10. * log10(l1); }
+static float estpsnr(float l1) { return (float)(-10. * log10(l1)); }
 
 struct CmdArgs : CmdArgsBase {
 public:
@@ -111,7 +111,7 @@ restart:
 
     if (!args.quiet) bar.update((float)i / steps, std::string(str));
   
-    if (i >= 5000 & vnrNeuralVolumeGetTrainingLoss(neural_volume) > /*bad loss = */0.9) {
+    if (i >= 5000 && vnrNeuralVolumeGetTrainingLoss(neural_volume) > /*bad loss = */0.9) {
       std::cout << "bad setup, ... restart" << std::endl;
       logger.close();
       goto restart;

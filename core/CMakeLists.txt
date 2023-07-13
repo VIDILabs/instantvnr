@@ -61,16 +61,22 @@ endif()
 
 add_library(${target} # SHARED
   renderer/method_pathtracing.cu
+  renderer/method_pathtracing.h
+  
   renderer/method_raymarching.cu
+  renderer/method_raymarching.h
+
+  renderer/method_shadowmap.cu
+  renderer/method_shadowmap.h
+
   renderer/raytracing_shaders.h
   renderer/raytracing.h
-  renderer/dda.h
   renderer/optix_program.h
+  renderer/dda.h
 
   samplers/neural_sampler.cu
   samplers/neural_sampler.cpp
   samplers/neural_sampler.h
-
   sampler.cu
   sampler.h
 
@@ -78,17 +84,20 @@ add_library(${target} # SHARED
   network.cu
   network.h
 
-  object.cpp
-  object.h
+  macrocell.cu
+  macrocell.h
 
-  serializer.cpp
-  serializer.h
+  instantvnr_types.cu
+  instantvnr_types.h
 
-  renderer.cpp
-  renderer.h 
+  array.h
 
-  types.h
-
+  ../object.cpp
+  ../object.h
+  ../serializer.cpp
+  ../serializer.h
+  ../renderer.cpp
+  ../renderer.h
   ../api.cpp
   ../api.h
 )
@@ -98,7 +107,7 @@ if(ENABLE_OPTIX)
   cuda_compile_and_embed(embedded_ptx_code_optix
     renderer/method_optix.cu
   DEPENDS
-    types.h
+    array.h
     renderer/dda.h
     renderer/raytracing.h
     renderer/raytracing_shaders.h
@@ -118,8 +127,9 @@ if(ENABLE_IN_SHADER)
   target_sources(${target} PRIVATE
     networks/tcnn_impl_decoder.cu
     networks/tcnn_impl_network.cu
+    marching_cube.cu
   )
-  target_compile_definitions(${target} PRIVATE ENABLE_IN_SHADER=1)
+  target_compile_definitions(${target} PUBLIC ENABLE_IN_SHADER=1)
 endif()
 
 if(ENABLE_OUT_OF_CORE)
