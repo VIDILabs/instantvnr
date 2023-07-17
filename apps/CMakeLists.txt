@@ -53,24 +53,23 @@ target_link_libraries(vnr_cmd_train PRIVATE ${target})
 add_executable(vnr_cmd_render batch_renderer.cpp)
 target_link_libraries(vnr_cmd_render PRIVATE ${target})
 
-add_executable(vnr_cmd_isosurface batch_isosurface.cpp)
-target_link_libraries(vnr_cmd_isosurface PRIVATE ${target})
+if (ENABLE_IN_SHADER)
+  add_executable(vnr_cmd_isosurface batch_isosurface.cpp)
+  target_link_libraries(vnr_cmd_isosurface PRIVATE ${target})
+endif()
 
 add_executable(view_model view_model.cpp)
 target_link_libraries(view_model PRIVATE ${target})
 
 # OVR application
 if(DEFINED OVR_BUILD_MODULE_NNVOLUME)
+
   add_executable(generate_shadow_map shadowmap.cu)
-  target_link_libraries(generate_shadow_map 
-    PUBLIC 
-      renderlib glfwApp
-      $<TARGET_OBJECTS:device_nnvolume_array>
-  )
-  add_executable(vnr_int_isosurface int_isosurface.cu)
-  target_link_libraries(vnr_int_isosurface 
-  PUBLIC 
-    renderlib # TBB::tbb 
-    ${target} ${GFX_LIBRARIES} 
-  )
+  target_link_libraries(generate_shadow_map PUBLIC  renderlib glfwApp $<TARGET_OBJECTS:device_nnvolume_array>)
+
+  if (ENABLE_IN_SHADER)
+    add_executable(vnr_int_isosurface int_isosurface.cu)
+    target_link_libraries(vnr_int_isosurface PUBLIC renderlib ${target} ${GFX_LIBRARIES})
+  endif()
+
 endif()
