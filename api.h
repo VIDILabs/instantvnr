@@ -186,3 +186,4 @@ void vnrRelease(void*);
 void vnrMemoryQuery(size_t* used_by_renderer, size_t* used_by_tcnn);
 void vnrMemoryQueryPrint(const char* str);
 void vnrFreeTemporaryGPUMemory();
+void vnrCompilationStatus(const char* str);

@@ -1028,6 +1028,8 @@ public:
 extern "C" int
 main(int ac, char** av)
 {
+  vnrCompilationStatus("[vnr]");
+
   // -------------------------------------------------------
   // initialize command line arguments
   // -------------------------------------------------------

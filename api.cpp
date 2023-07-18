@@ -555,3 +555,45 @@ void vnrFreeTemporaryGPUMemory()
 {
   NeuralVolume::free_temporary_gpu_memory_by_tcnn();
 }
+
+void vnrCompilationStatus(const char* str)
+{
+  printf("%s: Instant VNR Summary\n", str);
+
+#if ADAPTIVE_SAMPLING
+  printf("    macrocell acceleration: enabled\n");
+  printf("    macrocell size: %d\n", 1 << MACROCELL_SIZE_MIP);
+#else
+  printf("    macrocell acceleration: disabled\n");
+#endif
+
+#ifdef ENABLE_FVSRN
+  printf("    fV-SRN: enabled\n");
+#else
+  printf("    fV-SRN: disabled\n");
+#endif
+
+#ifdef ENABLE_OPTIX
+  printf("    optix renderer: enabled\n");
+#else
+  printf("    optix renderer: disabled\n");
+#endif
+
+#ifdef ENABLE_IN_SHADER
+  printf("    in-shader renderer: enabled\n");
+#else
+  printf("    in-shader renderer: disabled\n");
+#endif
+
+#ifdef ENABLE_OPENVKL
+  printf("    openvkl sampler: enabled\n");
+#else
+  printf("    openvkl sampler: disabled\n");
+#endif
+
+#ifdef ENABLE_OUT_OF_CORE
+  printf("    out-of-core sampler: enabled\n");
+#else
+  printf("    out-of-core sampler: disabled\n");
+#endif
+}
