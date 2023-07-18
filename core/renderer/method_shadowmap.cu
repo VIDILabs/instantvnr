@@ -18,7 +18,7 @@
 // #include <thrust/remove.h>
 
 #ifndef ADAPTIVE_SAMPLING
-#define ADAPTIVE_SAMPLING 1
+#error "ADAPTIVE_SAMPLING is not defined"
 #endif
 
 

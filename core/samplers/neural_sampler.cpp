@@ -50,6 +50,10 @@ static std::ostream null_output_stream(0);
 #define log() null_output_stream
 #endif
 
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
 static std::mt19937 rng;
 
 static uint32_t random_uint32(const uint32_t& min, const uint32_t& max) {
@@ -220,12 +224,17 @@ compute_scalar_fminmax(const void* _array, size_t count)
 
 } // namespace
 
+
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
 void
-StaticSampler::load(const MultiVolume::File& desc,
-                    vec3i dims, dtype type, range1f minmax,
-                    std::shared_ptr<char[]>& buffer,
-                    range1f& value_range_unnormalized,
-                    range1f& value_range_normalized)
+load_regular_grid(const MultiVolume::File& desc,
+                  vec3i dims, ValueType type, range1f minmax,
+                  std::shared_ptr<char[]>& buffer,
+                  range1f& value_range_unnormalized,
+                  range1f& value_range_normalized)
 {
   const auto& offset = desc.offset;
   const auto& filename = desc.filename;
@@ -331,6 +340,8 @@ trilinear_vkl(const vec3f& p_cell_centered, const vec3i& m_dims, const F& access
 /////////////////////////////////////////////////////////////////////
 //
 /////////////////////////////////////////////////////////////////////
+
+#ifdef ENABLE_OUT_OF_CORE
 
 static vec3i
 to_grid_index(size_t index, vec3i grid)
@@ -667,6 +678,8 @@ public:
   }
 };
 
+#endif // ENABLE_OUT_OF_CORE
+
 /////////////////////////////////////////////////////////////////////
 //
 /////////////////////////////////////////////////////////////////////
@@ -711,7 +724,8 @@ static const VKLFilter vklfilter = VKL_FILTER_NEAREST;
 #define DEVICE device
 #endif
 
-OpenVKLSampler::OpenVKLSampler()
+// Example Unstructured Volume Loader //////////////////////////////////
+OpenVKLSampler::OpenVKLSampler(const std::string& example)
 {
   using namespace openvkl::testing;
 
@@ -721,15 +735,24 @@ OpenVKLSampler::OpenVKLSampler()
   rkcommon::math::vec3f gridSpacing(1.f / rkcommon::math::vec3f(dimensions));
   openvkl::testing::ProceduralStructuredRegularVolume<>::generateGridParameters(dimensions, boundingBoxSize, gridOrigin, gridSpacing);
 
-  // testing = std::make_shared<XYZStructuredRegularVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
-  // testing = std::make_shared<SphereStructuredRegularVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
-  // testing = std::make_shared<WaveletStructuredRegularVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
-  // testing = std::make_shared<XYZUnstructuredProceduralVolume>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing, VKL_HEXAHEDRON);
-  // testing = std::make_shared<SphereUnstructuredProceduralVolume>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing, VKL_HEXAHEDRON);
-  // testing = std::make_shared<WaveletUnstructuredProceduralVolume>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing, VKL_HEXAHEDRON);
-  // testing = std::make_shared<XYZVdbVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
-  // testing = std::make_shared<SphereVdbVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
-  testing = std::make_shared<WaveletVdbVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
+  if (example == "XYZStructuredRegular")
+    testing = std::make_shared<XYZStructuredRegularVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
+  else if (example == "SphereStructuredRegular")
+    testing = std::make_shared<SphereStructuredRegularVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
+  else if (example == "WaveletStructuredRegular")
+    testing = std::make_shared<WaveletStructuredRegularVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
+  else if (example == "XYZUnstructuredProcedural")
+    testing = std::make_shared<XYZUnstructuredProceduralVolume>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing, VKL_HEXAHEDRON);
+  else if (example == "SphereUnstructuredProcedural")
+    testing = std::make_shared<SphereUnstructuredProceduralVolume>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing, VKL_HEXAHEDRON);
+  else if (example == "WaveletUnstructuredProcedural")
+    testing = std::make_shared<WaveletUnstructuredProceduralVolume>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing, VKL_HEXAHEDRON);
+  else if (example == "XYZVdb")
+    testing = std::make_shared<XYZVdbVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
+  else if (example == "SphereVdb")
+    testing = std::make_shared<SphereVdbVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
+  else
+    testing = std::make_shared<WaveletVdbVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
 
   m_volume = testing->getVKLVolume(DEVICE);
   vklSetFloat((VKLVolume&)m_volume, "background", 0.f);
@@ -752,7 +775,7 @@ OpenVKLSampler::OpenVKLSampler()
   m_bbox = (box3f&)bbox;
 }
 
-// VDB loader
+// VDB Loader /////////////////////////////////////////////////////////
 OpenVKLSampler::OpenVKLSampler(const std::string& filename, const std::string& field)
 {
   using namespace openvkl::testing;
@@ -778,55 +801,27 @@ OpenVKLSampler::OpenVKLSampler(const std::string& filename, const std::string& f
   m_cell_centered = false;
 }
 
-// regular grid
-OpenVKLSampler::OpenVKLSampler(const MultiVolume& desc, bool save_volume, bool skip_texture)
+// Regular Grid Loader ////////////////////////////////////////////////
+OpenVKLSampler::OpenVKLSampler(const MultiVolume::File& file, vec3i dims, dtype type, range1f range)
 {
-  m_static_impl = std::make_shared<StaticSampler>(desc, save_volume, skip_texture);
-  m_type = m_static_impl->type();
-  m_dims = m_static_impl->dims();
-  m_tex = m_static_impl->texture();
-  create();
-}
-
-// downsampled regular grid
-OpenVKLSampler::OpenVKLSampler(const MultiVolume& desc, bool save_volume, const vec3i dims)
-{
-  m_static_impl = std::make_shared<StaticSampler>(desc, save_volume, true);
-  m_type = m_static_impl->type();
-  m_dims = m_static_impl->dims();
-  create();
-
-  m_dims = dims;
-  const uint64_t count = (size_t)dims.x * dims.y * dims.z;
-  const vec3f rdims = 1.f / vec3f(dims-1.f); // in openvkl, volumes are node centered by default.
-
-  std::unique_ptr<float[]> data(new float[count]);
-
-  const auto value_scale = 1.f / (m_value_range.upper - m_value_range.lower);
-
-  // compute a downsampled volume
-  tbb::parallel_for(size_t(0), count, [&](size_t i) {
-    const int x = i % dims.x;
-    const int y = (i % ((size_t)dims.x * dims.y)) / dims.x;
-    const int z = i / ((size_t)dims.x * dims.y);
-    const vec3f p = vec3f(x, y, z) * rdims * m_bbox.size() + m_bbox.lower;
-    const float v = vklComputeSample((VKLSampler&)m_sampler, (vkl_vec3f*)&p);
-    data[i] = (v - m_value_range.lower) * value_scale;
-  });
-
-  CreateArray3DScalar<float>(m_downsampled_array, m_downsampled_texture, dims, 
-                             SAMPLE_WITH_TRILINEAR_INTERPOLATION, data.get());
-
-  m_tex = m_downsampled_texture;
+  range1f value_range_unnormalized, value_range_normalized;
+  load_regular_grid(file, dims, type, range, 
+       m_current_data, 
+       value_range_unnormalized, 
+       value_range_normalized
+  );
+  create(dims, type, value_range_normalized);
 }
 
 void
-OpenVKLSampler::create()
+OpenVKLSampler::create(vec3i dims, dtype _type, range1f range)
 {
-  auto& source = *m_static_impl;
+  m_dims = dims;
+  m_type = _type;
+  m_value_range = range;
 
   VKLDataType type;
-  switch (source.type()) {
+  switch (_type) {
   case VALUE_TYPE_UINT8:  type = VKL_UCHAR;  break;
   case VALUE_TYPE_INT8:   type = VKL_CHAR;   break;
   case VALUE_TYPE_UINT16: type = VKL_USHORT; break;
@@ -839,13 +834,13 @@ OpenVKLSampler::create()
   }
 
   m_volume = vklNewVolume(DEVICE_COMMA "structuredRegular");
-  vklSetVec3i((VKLVolume&)m_volume, "dimensions", source.dims().x, source.dims().y, source.dims().z);
+  vklSetVec3i((VKLVolume&)m_volume, "dimensions", dims.x, dims.y, dims.z);
   vklSetVec3f((VKLVolume&)m_volume, "gridOrigin", 0, 0, 0);
   vklSetVec3f((VKLVolume&)m_volume, "gridSpacing", 1.f, 1.f, 1.f);
   vklSetFloat((VKLVolume&)m_volume, "background", 0.f);
   vklSetInt((VKLVolume&)m_volume, "filter", vklfilter);
 
-  VKLData data = vklNewData(DEVICE_COMMA source.dims().long_product(), type, source.data(/*timestamp=*/0), VKL_DATA_SHARED_BUFFER);
+  VKLData data = vklNewData(DEVICE_COMMA dims.long_product(), type, m_current_data.get(), VKL_DATA_SHARED_BUFFER);
   vklSetData((VKLVolume&)m_volume, "data", data);
   vklRelease(data);
 
@@ -853,9 +848,6 @@ OpenVKLSampler::create()
 
   m_sampler = vklNewSampler((VKLVolume&)m_volume);
   vklCommit((VKLSampler&)m_sampler);
-
-  m_value_range.lower = source.lower();
-  m_value_range.upper = source.upper();
 
   const auto bbox = vklGetBoundingBox((VKLVolume&)m_volume);
   m_bbox = (box3f&)bbox;
@@ -957,11 +949,51 @@ OpenVKLSampler::sample_with_inputs(const vec3f* h_coords, float* h_values, size_
   });
 }
 
+
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
+
+// regular grid
+OpenVKLSampler_WithGroundTruthData::OpenVKLSampler_WithGroundTruthData(const MultiVolume& desc)
+  : OpenVKLSampler(desc.data[0], desc.dims, desc.type, desc.range)
+{
+  CreateArray3DScalar<float>(m_array, m_texture, desc.dims, SAMPLE_WITH_TRILINEAR_INTERPOLATION, (float*)m_current_data.get());
+}
+
+// downsampled regular grid
+OpenVKLSampler_WithGroundTruthData::OpenVKLSampler_WithGroundTruthData(const MultiVolume& desc, const vec3i dims)
+  : OpenVKLSampler(desc.data[0], desc.dims, desc.type, desc.range)
+{
+  m_dims = dims;
+  const uint64_t count = (size_t)dims.x * dims.y * dims.z;
+  const vec3f rdims = 1.f / vec3f(dims-1.f); // in openvkl, volumes are node centered by default.
+
+  std::unique_ptr<float[]> data(new float[count]);
+
+  const auto value_scale = 1.f / (m_value_range.upper - m_value_range.lower);
+
+  // compute a downsampled volume
+  tbb::parallel_for(size_t(0), count, [&](size_t i) {
+    const int x = i % dims.x;
+    const int y = (i % ((size_t)dims.x * dims.y)) / dims.x;
+    const int z = i / ((size_t)dims.x * dims.y);
+    const vec3f p = vec3f(x, y, z) * rdims * m_bbox.size() + m_bbox.lower;
+    const float v = vklComputeSample((VKLSampler&)m_sampler, (vkl_vec3f*)&p);
+    data[i] = (v - m_value_range.lower) * value_scale;
+  });
+
+  CreateArray3DScalar<float>(m_array, m_texture, dims, SAMPLE_WITH_TRILINEAR_INTERPOLATION, data.get());
+}
+
 #endif // ENABLE_OPENVKL
 
 // ------------------------------------------------------------------
 //
 // ------------------------------------------------------------------
+
+#ifdef ENABLE_OUT_OF_CORE
 
 void
 sample_streaming_grid(void* d_coords,
@@ -1033,6 +1065,9 @@ sample_streaming_grid(void* d_coords,
   // step 4. copy values to gpu
   CUDA_CHECK(cudaMemcpyAsync(d_values, m_values.data(), sizeof(float) * batch_size, cudaMemcpyHostToDevice, stream));
 }
+
+#endif // ENABLE_OUT_OF_CORE
+
 
 // ------------------------------------------------------------------
 //
@@ -1198,76 +1233,5 @@ VirtualMemorySampler::sample_grid(void* d_coords, void* d_values, vec3i grid_ori
 }
 
 #endif // ENABLE_OUT_OF_CORE
-
-// ------------------------------------------------------------------
-//
-// ------------------------------------------------------------------
-
-void
-Sampler::load(const MultiVolume& desc, std::string training_mode, bool save_volume)
-{
-  /* GPU-based */
-  if (training_mode == "GPU") {
-    impl = std::make_shared<StaticSampler>(desc, save_volume, false);
-    m_dims = impl->dims();
-  }
-
-#ifdef ENABLE_OUT_OF_CORE
-
-  /* CPU-based, virtual memory, no ground truth */
-  else if (training_mode == "VIRTUAL_MEMORY") {
-    impl = std::make_shared<VirtualMemorySampler>(desc);
-    m_dims = gdt::min(vec3i(1024), vec3i(desc.dims));
-  }
-
-  /* out-of-core-steaming */
-  else if (training_mode == "OUT_OF_CORE") {
-    impl = std::make_shared<OutOfCoreSampler>(desc);
-    m_dims = gdt::min(vec3i(1024), vec3i(desc.dims));
-  }
-
-#endif // ENABLE_OUT_OF_CORE
-
-#ifdef ENABLE_OPENVKL
-
-  /* CPU-based, openvkl, no ground truth */
-  else if (training_mode == "OPENVKL") {
-    impl = std::make_shared<OpenVKLSampler>(desc, save_volume, true);
-    m_dims = gdt::min(vec3i(1024), vec3i(desc.dims));
-  }
-
-  /* use OpenVKL sampling but with a ground truth at the original resolution */
-  else if (training_mode == "OPENVKL_GT_ORIGINAL_RESOLUTION") {
-    impl = std::make_shared<OpenVKLSampler>(desc, /*save_volume=*/false, false);
-    m_dims = impl->dims();
-  }
-
-  /* use OpenVKL sampling but with a ground truth at the original resolution */
-  else if (training_mode == "OPENVKL_GT_DOWNSAMPLE_RESOLUTION") {
-    m_dims = vec3i(desc.dims) / 8; // downsampled by 8x
-    impl = std::make_shared<OpenVKLSampler>(desc, /*save_volume=*/false, m_dims);
-  }
-
-  /* using OpenVKL to support irregular datasets */
-  else if (training_mode == "OPENVKL_IRREGULAR") {
-    impl = std::make_shared<OpenVKLSampler>();
-    // impl = std::make_shared<OpenVKLSampler>("/home/qwu/Work/datasets/openvdb/bunny_cloud.vdb", "density");
-    // impl = std::make_shared<OpenVKLSampler>("/home/qwu/Work/datasets/openvdb/wdas_cloud.vdb", "density");
-    m_dims = vec3i(impl->dims()) * 1024 / gdt::reduce_max(vec3i(impl->dims()));
-    m_transform = affine3f::translate(-vec3f(m_dims) / 2.f) * affine3f::scale(vec3f(m_dims));
-    return;
-  }
-
-#endif // ENABLE_OPENVKL
-
-  else if (training_mode == "NOTHING") {
-    impl = std::make_shared<StaticSampler>(desc.dims, desc.type);
-    m_dims = impl->dims();
-  }
-
-  else throw std::runtime_error("unknown mode");
-
-  m_transform = affine3f::translate(vec3f(desc.dims) * -0.5f) * affine3f::scale(vec3f(desc.dims));
-}
 
 } // namespace vnr

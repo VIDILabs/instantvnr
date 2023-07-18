@@ -11,6 +11,10 @@
 
 namespace vnr {
 
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
 void random_hbuffer_uniform(float* h_buffer, size_t batch);
 void random_dbuffer_uniform(float* d_buffer, size_t batch, cudaStream_t stream);
 
@@ -42,87 +46,111 @@ inline void random_dbuffer_uint64(uint64_t* d_buffer, size_t batch, uint64_t cou
 
 void generate_grid_coords(float* d_coords, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream);
 
-struct RandomBuffer;
 
-struct StaticSampler : SamplerAPI
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
+void load_regular_grid(
+  const MultiVolume::File& file, 
+  vec3i dims, ValueType type, range1f minmax,
+  std::shared_ptr<char[]>& buffer,
+  range1f& value_range_unnormalized, 
+  range1f& value_range_normalized
+);
+
+struct DummySampler : SamplerAPI
 {
 private:
-  vec3i     m_dims{};
-  dtype     m_type{};
+  vec3i m_dims{};
+  dtype m_type = VALUE_TYPE_FLOAT;
+  range1f m_value_range_normalized = range1f(0.f, 1.f);
 
+public:
+  DummySampler(vec3i dims) : m_dims(dims) { }
+  cudaTextureObject_t texture() const override { return 0; }
+  dtype type() const override { return m_type; }
+  vec3i dims() const override { return m_dims; }
+  float lower() const override { return m_value_range_normalized.lower; }
+  float upper() const override { return m_value_range_normalized.upper; }
+  void set_current_volume_timestamp(int index) override { }
+  void sample(void* d_coords, void* d_values, size_t num_samples, const vec3f& lower, const vec3f& upper, cudaStream_t stream) override { }
+};
+
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
+struct CudaSampler : SamplerAPI
+{
+protected:
+  std::shared_ptr<char[]> m_current_data;
+
+  vec3i m_dims{};
+  dtype m_type{};
   cudaTextureObject_t m_texture{};
   cudaArray_t m_array;
-
-  std::vector<std::shared_ptr<char[]>> m_dataset;
-
   range1f m_value_range_normalized;
   range1f m_value_range_unnormalized;
 
-  int m_timestamp = 0;
-
-  static void load(const MultiVolume::File& file, 
-                   vec3i dims, dtype type, range1f minmax,
-                   std::shared_ptr<char[]>& buffer,
-                   range1f& value_range_unnormalized, 
-                   range1f& value_range_normalized);
-
 public:
-  ~StaticSampler();
-  StaticSampler(vec3i dims, dtype type);
-  StaticSampler(const MultiVolume& desc, bool save_volume, bool skip_texture);
-  void* data(int timestamp) const { return m_dataset[timestamp].get(); }
-  void set_current_volume_timestamp(int index) override;
-
+  ~CudaSampler();
+  CudaSampler(const MultiVolume::File& file, vec3i dims, dtype type, range1f range, bool create_cuda_texture, bool save_volume_to_debug);
+  void* data(int timestamp) const { assert(timestamp == 0); return m_current_data.get(); }
   cudaTextureObject_t texture() const override { return m_texture; }
   dtype type() const override { return m_type; }
   vec3i dims() const override { return m_dims; }
   float lower() const override { return m_value_range_normalized.lower; }
   float upper() const override { return m_value_range_normalized.upper; }
-  void sample(void* d_coords, void* d_values, size_t num_samples, const vec3f& lower, const vec3f& upper, cudaStream_t stream) override;
-  void sample_grid(void* d_coords, void* d_values, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream) override;
+  void sample(void* d_coords, void* d_values, size_t num_samples, const vec3f& lower, const vec3f& upper, cudaStream_t stream);
+  void sample_grid(void* d_coords, void* d_values, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream);
   void sample_inputs(const void* d_coords, void* d_values, size_t num_samples, cudaStream_t stream);
+  void set_current_volume_timestamp(int index) override { if (index != 0) throw std::runtime_error("not implemented"); }
 };
+
+struct CudaSampler_TimeVarying : CudaSampler
+{
+private:
+  int m_timestamp = 0;
+  std::vector<std::shared_ptr<char[]>> m_dataset;
+
+public:
+  CudaSampler_TimeVarying(const MultiVolume& desc, bool save_volume, bool skip_texture);
+  void* data(int timestamp) const { return m_dataset[timestamp].get(); }
+  void set_current_volume_timestamp(int index) override;
+};
+
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
 
 #ifdef ENABLE_OPENVKL
 
 struct OpenVKLSampler : SamplerAPI
 {
-private:
+protected:
   void* m_volume{};
   void* m_sampler{};
 
   vec3i m_dims{};
   dtype m_type = VALUE_TYPE_FLOAT;
-  cudaTextureObject_t m_tex = 0; // this is just a "pointer"
+  box3f m_bbox;
+
+  bool  m_cell_centered = true;
 
   std::vector<vec3f> m_coords; // for staging data temporarily
   std::vector<float> m_values;
 
   range1f m_value_range{0.f, 1.f};
 
-  // data source 1
-  std::shared_ptr<StaticSampler> m_static_impl;
-  // data source 2
-  cudaTextureObject_t m_downsampled_texture;
-  cudaArray_t m_downsampled_array;
-
-  bool m_cell_centered = true;
-
-  box3f m_bbox;
+  std::shared_ptr<char[]> m_current_data;
 
 public:
-  OpenVKLSampler(); // irregular volume loader
-  OpenVKLSampler(const std::string& filename, const std::string& field); // VDB loader
-  OpenVKLSampler(const MultiVolume& desc, bool save_volume, bool skip_texture); // regular grid
-  OpenVKLSampler(const MultiVolume& desc, bool save_volume, vec3i downsampled_dims); // downsampled regular grid
-  void create();
-
-  void set_current_volume_timestamp(int index) override 
-  {
-    if (index != 0) throw std::runtime_error("currently only support single timestep volume");
-  }
-
-  cudaTextureObject_t texture() const override { return m_tex; }
+  OpenVKLSampler(const std::string& example); // Example Unstructured Volume Loader
+  OpenVKLSampler(const std::string& filename, const std::string& field); // VDB Loader
+  OpenVKLSampler(const MultiVolume::File& file, vec3i dims, dtype type, range1f range); // Regular Grid Loader
+  void create(vec3i dims, dtype _type, range1f range);
+  cudaTextureObject_t texture() const override { return 0; }
   dtype type() const override { return m_type; }
   vec3i dims() const override { return m_dims; }
   float lower() const override { return m_value_range.lower; }
@@ -130,11 +158,34 @@ public:
   void sample(void* d_input, void* d_output, size_t num_samples, const vec3f& lower, const vec3f& upper, cudaStream_t stream) override;
   void sample_grid(void* d_coords, void* d_values, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream) override;
   void sample_with_inputs(const vec3f* h_input, float* h_output, size_t num_samples, cudaStream_t stream);
+  void set_current_volume_timestamp(int index) override {
+    if (index != 0) throw std::runtime_error("OpenVKL sampler do not support timevarying data");
+  }
+};
+
+struct OpenVKLSampler_WithGroundTruthData : OpenVKLSampler
+{
+private:
+  cudaTextureObject_t m_texture;
+  cudaArray_t m_array;
+
+public:
+  OpenVKLSampler_WithGroundTruthData(const MultiVolume& desc); // regular grid
+  OpenVKLSampler_WithGroundTruthData(const MultiVolume& desc, vec3i downsampled_dims); // downsampled regular grid
+  cudaTextureObject_t texture() const override { return m_texture; }
 };
 
 #endif // ENABLE_OPENVKL
 
+
+
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
 #ifdef ENABLE_OUT_OF_CORE
+
+struct RandomBuffer;
 
 struct OutOfCoreSampler : SamplerAPI
 {

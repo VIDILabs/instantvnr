@@ -22,6 +22,10 @@
 #include <cuda/cuda_buffer.h>
 
 #ifndef ADAPTIVE_SAMPLING
+#error "ADAPTIVE_SAMPLING is not defined"
+#endif
+
+#if ADAPTIVE_SAMPLING
 #define VARYING_MAJORANT 1
 #define USE_DELTA_TRACKING_ITER 1
 #endif

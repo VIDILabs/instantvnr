@@ -19,15 +19,10 @@ static std::ostream null_output_stream(0);
 
 namespace vnr {
 
-namespace {
-
-template<class T>
-constexpr const T& clamp(const T& v, const T& lo, const T& hi)
-{
-    return (v < lo) ? lo : (hi < v) ? hi : v;
-}
-
-} // namespace
+// namespace {
+// template<class T>
+// constexpr const T& clamp(const T& v, const T& lo, const T& hi) { return (v < lo) ? lo : (hi < v) ? hi : v; }
+// } // namespace
 
 // ------------------------------------------------------------------
 //
@@ -54,13 +49,12 @@ void random_dbuffer_uint64(uint64_t* d_buffer, size_t batch, uint64_t min, uint6
 //
 // ------------------------------------------------------------------
 
-__global__ void 
-generate_coords(uint32_t n_elements, vec3i lower, vec3i size, vec3f rdims, float* __restrict__ coords);
+// function defined in network.cu (line 51-68)
+__global__ void generate_coords(uint32_t n_elements, vec3i lower, vec3i size, vec3f rdims, float* __restrict__ coords);
 
-StaticSampler::~StaticSampler()
+CudaSampler::~CudaSampler()
 {
   // TODO: cleanup 3D textures
-
   // if (m_array) {
   //   CUDA_CHECK_NOEXCEPT(cudaFreeArray(m_array));
   //   m_array = NULL;
@@ -73,62 +67,36 @@ StaticSampler::~StaticSampler()
   // dims = 0;
 }
 
-StaticSampler::StaticSampler(vec3i dims, ValueType type)
+CudaSampler::CudaSampler(const MultiVolume::File& file, vec3i dims, dtype type, range1f range, bool create_cuda_texture, bool save_volume_to_debug)
+  : m_dims(dims)
+  , m_type(VALUE_TYPE_FLOAT)
 {
   m_dims = dims;
   m_type = VALUE_TYPE_FLOAT;
-  m_value_range_normalized.lower = 0.f;
-  m_value_range_normalized.upper = 1.f;
 
-  m_value_range_unnormalized = m_value_range_normalized;
-}
-
-StaticSampler::StaticSampler(const MultiVolume& desc, bool save_volume, bool skip_texture)
-{
-  const auto& dims = desc.dims;
-  const auto& type = desc.type;
-  const auto& range = desc.range;
-
-  m_dims = dims;
-  m_type = VALUE_TYPE_FLOAT;
-  m_dataset.resize(desc.data.size());
-
-  load(desc.data[0], dims, type, range, 
-       m_dataset[0], 
+  load_regular_grid(file, dims, type, range, 
+       m_current_data, 
        m_value_range_unnormalized, 
-       m_value_range_normalized);
+       m_value_range_normalized
+  );
 
 #if 1 /* save volume */
-  if (save_volume) {
+  if (save_volume_to_debug) {
     vidi::FileMap w = vidi::filemap_write_create("reference.bin", sizeof(float) * dims.long_product());
-    vidi::filemap_random_write(w, 0, (float*)m_dataset[0].get(), sizeof(float) * dims.long_product());
+    vidi::filemap_random_write(w, 0, (float*)m_current_data.get(), sizeof(float) * dims.long_product());
     vidi::filemap_close(w);
     log() << "[vnr] saved the reference volume to: reference.bin" << std::endl;
   }
 #endif
 
   // generate a texture to represent the ground truth
-  if (!skip_texture) {
-    CreateArray3DScalar<float>(m_array, m_texture, dims, SAMPLE_WITH_TRILINEAR_INTERPOLATION, (float*)m_dataset[0].get());
+  if (create_cuda_texture) {
+    CreateArray3DScalar<float>(m_array, m_texture, dims, SAMPLE_WITH_TRILINEAR_INTERPOLATION, (float*)m_current_data.get());
   }
-
-  for (int i = 1; i < desc.data.size(); ++i) {
-    range1f unnormalized, normalized;
-    load(desc.data[i], dims, type, range, m_dataset[i], unnormalized, normalized);
-    m_value_range_unnormalized.extend(unnormalized);
-    m_value_range_normalized.extend(normalized);
-  }
-}
-
-void 
-StaticSampler::set_current_volume_timestamp(int index)
-{
-  CopyLinearMemoryToArray<float>(m_dataset[index].get(), m_array, m_dims, cudaMemcpyHostToDevice);
-  m_timestamp = index;
 }
 
 void
-StaticSampler::sample(void* d_input, void* d_output, size_t batch_size, const vec3f& lower, const vec3f& upper, cudaStream_t stream)
+CudaSampler::sample(void* d_input, void* d_output, size_t batch_size, const vec3f& lower, const vec3f& upper, cudaStream_t stream)
 {
   TRACE_CUDA;
 
@@ -164,14 +132,14 @@ StaticSampler::sample(void* d_input, void* d_output, size_t batch_size, const ve
 }
 
 void 
-StaticSampler::sample_grid(void* d_coords, void* d_values, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream)
+CudaSampler::sample_grid(void* d_coords, void* d_values, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream)
 {
   generate_grid_coords((float*)d_coords, grid_origin, grid_dims, grid_spacing, stream);
   sample_inputs(d_coords, d_values, grid_dims.long_product(), stream);
 }
 
 void 
-StaticSampler::sample_inputs(const void* d_coords, void* d_values, size_t num_samples, cudaStream_t stream)
+CudaSampler::sample_inputs(const void* d_coords, void* d_values, size_t num_samples, cudaStream_t stream)
 {
   // const vec3f lower(0.f);
   // const vec3f scale(1.f);
@@ -195,6 +163,31 @@ StaticSampler::sample_inputs(const void* d_coords, void* d_values, size_t num_sa
   //   assert(v1 == v2);
   //   values[i] = v2;
   // });
+}
+
+
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
+
+CudaSampler_TimeVarying::CudaSampler_TimeVarying(const MultiVolume& desc, bool save_volume, bool skip_texture)
+  : CudaSampler(desc.data[0], desc.dims, desc.type, desc.range, !skip_texture, save_volume)
+{
+  m_dataset.resize(desc.data.size());
+  m_dataset[0] = CudaSampler::m_current_data;
+  for (int i = 1; i < desc.data.size(); ++i) {
+    range1f unnormalized, normalized;
+    load_regular_grid(desc.data[i], desc.dims, desc.type, desc.range, m_dataset[i], unnormalized, normalized);
+    m_value_range_unnormalized.extend(unnormalized);
+    m_value_range_normalized.extend(normalized);
+  }
+}
+
+void 
+CudaSampler_TimeVarying::set_current_volume_timestamp(int index)
+{
+  CopyLinearMemoryToArray<float>(m_dataset[index].get(), m_array, m_dims, cudaMemcpyHostToDevice);
+  m_timestamp = index;
 }
 
 } // namespace vnr

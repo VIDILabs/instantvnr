@@ -242,7 +242,7 @@ public:
     // float loss;
 
     for (int i = 0; i < steps; ++i) {
-      m_source->sampler.take_samples(m_trainer.m_train_x->data(), m_trainer.m_train_y->data(), m_batch_size, stream, lower, upper);
+      m_source->sampler->take_samples(m_trainer.m_train_x->data(), m_trainer.m_train_y->data(), m_batch_size, stream, lower, upper);
 
       m_neural->train(*m_trainer.m_train_x, *m_trainer.m_train_y, stream);
 
@@ -269,7 +269,7 @@ public:
     const vec3f lower = vec3f(m_trainer.m_lower) / vec3f(m_trainer.m_gdims);
     const vec3f upper = vec3f(m_trainer.m_upper) / vec3f(m_trainer.m_gdims);
 
-    m_source->sampler.take_samples(m_trainer.m_test_x->data(), m_trainer.m_test_y0->data(), m_batch_size, stream, lower, upper);
+    m_source->sampler->take_samples(m_trainer.m_test_x->data(), m_trainer.m_test_y0->data(), m_batch_size, stream, lower, upper);
 
     m_neural->infer(*m_trainer.m_test_x, *m_trainer.m_test_y1, stream);
 
@@ -387,7 +387,7 @@ public:
     if (!ofile) throw std::runtime_error("Cannot open file: reference.bin");
 
     for (int z = 0; z < dims.z; ++z) {
-      m_source->sampler.take_samples_grid(slice_input.data(), slice_value.data(), vec3i(0,0,z), batch, rdims, nullptr);
+      m_source->sampler->take_samples_grid(slice_input.data(), slice_value.data(), vec3i(0,0,z), batch, rdims, nullptr);
       slice_value.copy_to_host(values);
 
       ofile.write((char *)values.data(), sizeof(float) * count);
@@ -442,7 +442,7 @@ public:
       if (count == 0) continue;
 
       // reference
-      m_source->sampler.take_samples_grid(coords.data(), values_reference.data(), offset, block, rdims, nullptr);
+      m_source->sampler->take_samples_grid(coords.data(), values_reference.data(), offset, block, rdims, nullptr);
       // inference
       m_neural->infer(network_i, network_o, 0);
 
@@ -524,7 +524,7 @@ public:
       const vec3i block_grid = block + win_size - 1;
 
       // reference
-      m_source->sampler.take_samples_grid(grid_input.data(), grid_reference.data(), block_grid_offset, block_grid, rdims, 0);
+      m_source->sampler->take_samples_grid(grid_input.data(), grid_reference.data(), block_grid_offset, block_grid, rdims, 0);
       // inference
       m_neural->infer(network_in, network_out, 0);
 
@@ -561,8 +561,8 @@ public:
 
     // sync the shape between groundtruth and neural volume
     if (m_source) {
-      m_dims = m_source->sampler.dims();
-      m_transform = m_source->sampler.transform();
+      m_dims = m_source->get_data_dims();
+      m_transform = m_source->get_data_transform();
     }
     else {
       m_dims = _dims; // '_dims' should not be used

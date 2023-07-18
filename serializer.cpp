@@ -16,7 +16,7 @@ typedef vnr::math::vec4i vec4i;
 
 namespace vnr { // clang-format off
 
-struct VolumeDesc : MultiVolume::File 
+struct VolumeFile : MultiVolume::File 
 {
   vec3i dims;
   ValueType type;
@@ -259,10 +259,10 @@ create_scene_vidi__tfn(json jstfn, json jsvolume, ValueType type)
   return tfn;
 }
 
-VolumeDesc
+VolumeFile
 create_scene_vidi__volume(const json& jsdata)
 {
-  VolumeDesc volume;
+  VolumeFile volume;
 
   const auto format = scalar_from_json<std::string>(jsdata["format"]);
 
@@ -287,7 +287,7 @@ create_scene_vidi__volume(const json& jsdata)
 }
 
 MultiVolume::File
-create_scene_vidi__multivolume(const json& jsdata, const VolumeDesc& volume)
+create_scene_vidi__multivolume(const json& jsdata, const VolumeFile& volume)
 {
   MultiVolume::File file;
 
@@ -332,7 +332,7 @@ create_json_scene_vidi(json root, MultiVolume& volume, TransferFunction& tfn, Ca
   assert_throw(ds.is_array(), "'dataSource' is expected to be an array");
 
   // reate primary volume
-  VolumeDesc pv = create_scene_vidi__volume(ds[0]);
+  VolumeFile pv = create_scene_vidi__volume(ds[0]);
 
   // create multi volume
   volume.dims = pv.dims;
@@ -393,7 +393,7 @@ create_json_volume_stringify_vidi(json root, MultiVolume& volume)
   assert_throw(ds.is_array(), "'dataSource' is expected to be an array");
 
   // construct file descriptors
-  VolumeDesc pv = create_scene_vidi__volume(ds[0]);
+  VolumeFile pv = create_scene_vidi__volume(ds[0]);
 
   // create multi volume
   volume.dims = pv.dims;
@@ -417,7 +417,7 @@ create_json_camera_stringify_vidi(json root, Camera& camera)
 
   const auto& ds = root["dataSource"];
   assert_throw(ds.is_array(), "'dataSource' is expected to be an array");
-  VolumeDesc pv = create_scene_vidi__volume(ds[0]);
+  VolumeFile pv = create_scene_vidi__volume(ds[0]);
 
   camera.at   -= vec3f(pv.dims) / 2.f;
   camera.from -= vec3f(pv.dims) / 2.f;

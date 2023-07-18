@@ -9,6 +9,11 @@ namespace vnr {
 
 struct SamplerAPI // SamplerImpl
 {
+private:
+  vec3i m_rendering_dims{};
+  affine3f m_transform;
+
+public:
   typedef ValueType dtype;
 
   virtual ~SamplerAPI() = default;
@@ -20,48 +25,39 @@ struct SamplerAPI // SamplerImpl
   virtual float upper() const = 0;
   virtual void sample(void* d_coords, void* d_values, size_t num_samples, const vec3f& lower, const vec3f& upper, cudaStream_t stream) = 0;
   virtual void sample_grid(void* d_coords, void* d_values, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream) {};
-};
 
-struct Sampler
-{
-private:
-  using dtype = SamplerAPI::dtype;
-  std::shared_ptr<SamplerAPI> impl;
-  vec3i m_dims{};
-  affine3f m_transform;
-
-public:
-  Sampler() {}
-
-  const SamplerAPI* get_impl() const { return impl.get(); }
-
-  float lower() const { return impl->lower(); }
-  float upper() const { return impl->upper(); }
-  dtype type() const { return impl->type(); }
-  cudaTextureObject_t texture() const { return impl->texture(); }
-
-  vec3i dims() const { return m_dims; }
+  vec3i rendering_dims() const { return m_rendering_dims; }
   affine3f transform() const { return m_transform; }
-
   void set_transform(const affine3f& xfm) { m_transform = xfm; }
-
-  void set_current_volume_index(int index)
-  {
-    impl->set_current_volume_timestamp(index);
+  void set_current_volume_index(int index) { set_current_volume_timestamp(index); }
+  void take_samples(void* d_input, void* d_output, size_t num_samples, cudaStream_t stream, const vec3f& lower, const vec3f& upper) {
+    sample(d_input, d_output, num_samples, lower, upper, stream);
+  }
+  void take_samples_grid(void* d_input, void* d_output, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream) {
+    sample_grid(d_input, d_output, grid_origin, grid_dims, grid_spacing, stream);
   }
 
-  void take_samples(void* d_input, void* d_output, size_t num_samples, cudaStream_t stream, const vec3f& lower, const vec3f& upper) const
-  {
-    impl->sample(d_input, d_output, num_samples, lower, upper, stream);
-  }
-
-  void take_samples_grid(void* d_input, void* d_output, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream) const
-  {
-    impl->sample_grid(d_input, d_output, grid_origin, grid_dims, grid_spacing, stream);
-  }
-
-  void load(const MultiVolume& desc, std::string training_mode, bool save_volume = false);
+  static std::shared_ptr<SamplerAPI> 
+  create(const MultiVolume& desc, std::string training_mode, bool save_volume = false);
 };
+
+typedef std::shared_ptr<SamplerAPI> Sampler;
+
+// struct Sampler
+// {
+// private:
+//   using dtype = SamplerAPI::dtype;
+//   std::shared_ptr<SamplerAPI> impl;
+// public:
+//   Sampler() {}
+//   const SamplerAPI* get_impl() const { return impl.get(); }
+//   float lower() const { return impl->lower(); }
+//   float upper() const { return impl->upper(); }
+//   dtype type() const { return impl->type(); }
+//   cudaTextureObject_t texture() const { return impl->texture(); }
+//   vec3i rendering_dims() const { return m_dims; }
+//   affine3f transform() const { return m_transform; }
+// };
 
 struct SimpleVolume : VolumeObject {
 private:
@@ -81,10 +77,10 @@ public:
 
   // common API
   const cudaTextureObject_t& texture()  const override { return tex; }
-  ValueType get_data_type()             const override { return sampler.type(); }
-  range1f   get_data_value_range()      const override { return range1f(sampler.lower(), sampler.upper()); }
-  vec3i     get_data_dims()             const override { return sampler.dims(); }
-  affine3f  get_data_transform()        const override { return sampler.transform(); }
+  ValueType get_data_type()             const override { return sampler->type(); }
+  range1f   get_data_value_range()      const override { return range1f(sampler->lower(), sampler->upper()); }
+  vec3i     get_data_dims()             const override { return sampler->rendering_dims(); }
+  affine3f  get_data_transform()        const override { return sampler->transform(); }
   float*    get_macrocell_max_opacity() const override { return macrocell.d_max_opacity(); }
   vec2f*    get_macrocell_value_range() const override { return macrocell.d_value_range(); }
   vec3i     get_macrocell_dims()        const override { return macrocell.dims(); }

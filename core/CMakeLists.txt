@@ -51,8 +51,13 @@ endif()
 
 if(ENABLE_FVSRN)
   add_definitions(-DKERNEL_DOUBLE_PRECISION=1) # host: double precision for unit tests
-  add_definitions(-DADAPTIVE_SAMPLING=0)
   set(DISABLE_ADAPTIVE_SAMPLING ON)
+endif()
+
+if(DISABLE_ADAPTIVE_SAMPLING)
+  add_compile_definitions(ADAPTIVE_SAMPLING=0)
+else()
+  add_compile_definitions(ADAPTIVE_SAMPLING=1)
 endif()
 
 # ======================================================================== #
@@ -171,10 +176,6 @@ target_link_libraries(${target} PUBLIC # intentionally keep these library public
 if(TARGET openvkl::openvkl AND TARGET openvkl::testing)
   target_compile_definitions(${target} PRIVATE ENABLE_OPENVKL=1)
   target_link_libraries(${target} PRIVATE openvkl::openvkl openvkl::testing)
-endif()
-
-if(DISABLE_ADAPTIVE_SAMPLING)
-  target_compile_definitions(${target} PRIVATE ADAPTIVE_SAMPLING=0)
 endif()
 
 if(ENABLE_LOGGING)

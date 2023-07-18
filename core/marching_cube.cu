@@ -480,7 +480,7 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
     CUDABufferTyped<float> volume_data;
     {
       const int64_t n_voxels = dims.long_product();
-      const auto* sampler = dynamic_cast<const StaticSampler*>(ctx->source.sampler.get_impl());
+      const auto* sampler = dynamic_cast<const CudaSampler*>(ctx->source.sampler.get());
       volume_data.alloc_and_upload((float*)sampler->data(0), n_voxels);
     }
 
