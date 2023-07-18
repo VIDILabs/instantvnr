@@ -222,11 +222,11 @@ MainRenderer::set_scene(const cudaTextureObject_t& texture, ValueType type, vec3
 
   p_volume_data_texture = &texture;
 
-  printf("[vnr] MacroCell: Dims = (%d,%d,%d) Spacing (%f,%f,%f)\n",
-         macrocell_dims.x, macrocell_dims.y,macrocell_dims.z,
-         macrocell_spacings.x,
-         macrocell_spacings.y,
-         macrocell_spacings.z);
+  // printf("[vnr] MacroCell: Dims = (%d,%d,%d) Spacing (%f,%f,%f)\n",
+  //        macrocell_dims.x, macrocell_dims.y,macrocell_dims.z,
+  //        macrocell_spacings.x,
+  //        macrocell_spacings.y,
+  //        macrocell_spacings.z);
 
   /* create a volume texture regularly */
   auto& v = volume;
@@ -304,7 +304,11 @@ MainRenderer::initCuda()
   CUDA_CHECK(cudaSetDevice(device_id));
 
   cudaGetDeviceProperties(&cuda_device_props, device_id);
-  std::cout << "[vnr] running on device: " << cuda_device_props.name << std::endl;
+
+  char pciBusId[32];
+  cudaDeviceGetPCIBusId(pciBusId, 32, device_id);
+
+  std::cout << "[vnr] running on device: " << cuda_device_props.name << " (" << std::string(pciBusId) << ")" << std::endl;
 
   CUresult result = cuCtxGetCurrent(&cuda_context);
   if (result != CUDA_SUCCESS)
