@@ -478,8 +478,8 @@ main(int ac, const char** av)
     volume = vnrCreateNeuralVolume(params);
   }
 
-  vec3f scene_center = vec3f(volume->desc.dims) * 0.5f;
-  box3f scene_bounds = box3f(vec3f(0), vec3f(volume->desc.dims));
+  vec3f scene_center = vec3f(volume->dims) * 0.5f;
+  box3f scene_bounds = box3f(vec3f(0), vec3f(volume->dims));
 
   ovr::scene::Model model;
   model.type = ovr::scene::Model::GEOMETRIC_MODEL;

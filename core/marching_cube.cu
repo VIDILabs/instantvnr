@@ -455,7 +455,7 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
 
   if (v->isNetwork()) {
     const auto ctx = std::dynamic_pointer_cast<NeuralVolumeContext>(v);
-    const vec3i dims = ctx->desc.dims;
+    const vec3i dims = ctx->dims;
 
     const auto& network = ctx->neural;
 
@@ -474,7 +474,7 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
 
   else {
     const auto ctx = std::dynamic_pointer_cast<SimpleVolumeContext>(v);
-    const vec3i dims = ctx->desc.dims;
+    const vec3i dims = ctx->dims;
     // printf("type = %d, dims = %d, %d, %d\n", (int)ctx->desc.type, dims.x, dims.y, dims.z);
 
     CUDABufferTyped<float> volume_data;
