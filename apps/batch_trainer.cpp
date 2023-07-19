@@ -137,5 +137,8 @@ restart:
   vnrNeuralVolumeSerializeParams(neural_volume, output);
   vnrSaveJsonBinary(output, "params.json");
 
+  // vnrFreeTemporaryGPUMemory();
+  vnrMemoryQueryPrint("[vnr]"); // Optional
+
   return 0;
 }

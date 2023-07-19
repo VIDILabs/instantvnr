@@ -59,6 +59,13 @@ void load_regular_grid(
   range1f& value_range_normalized
 );
 
+void normalize_regular_grid(
+  std::shared_ptr<char[]>& buffer,
+  vec3i dims, ValueType type, range1f minmax,
+  range1f& value_range_unnormalized, 
+  range1f& value_range_normalized
+);
+
 struct DummySampler : SamplerAPI
 {
 private:
@@ -88,13 +95,14 @@ protected:
 
   vec3i m_dims{};
   dtype m_type{};
-  cudaTextureObject_t m_texture{};
-  cudaArray_t m_array;
+  cudaTextureObject_t m_texture{0};
+  cudaArray_t m_array{NULL};
   range1f m_value_range_normalized;
   range1f m_value_range_unnormalized;
 
 public:
   ~CudaSampler();
+  CudaSampler(const void* data, vec3i dims, dtype type, range1f range, bool create_cuda_texture);
   CudaSampler(const MultiVolume::File& file, vec3i dims, dtype type, range1f range, bool create_cuda_texture, bool save_volume_to_debug);
   void* data(int timestamp) const { assert(timestamp == 0); return m_current_data.get(); }
   cudaTextureObject_t texture() const override { return m_texture; }

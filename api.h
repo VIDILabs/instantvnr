@@ -114,6 +114,7 @@ vnr::vec3f vnrCameraGetUpVec(vnrCamera);
 // ------------------------------------------------------------------
 
 // simple volume
+vnrVolume vnrCreateSimpleVolume(const void* data, vnr::vec3i dims, std::string type, vnr::range1f range, std::string mode);
 vnrVolume vnrCreateSimpleVolume(const vnrJson& scene, std::string mode, bool save_loaded_volume = false);
 void vnrSimpleVolumeSetCurrentTimeStep(vnrVolume, int time);
 int  vnrSimpleVolumeGetNumberOfTimeSteps(vnrVolume);
@@ -182,7 +183,7 @@ vnr::vec4f* vnrRendererMapFrame(vnrRenderer);
 //
 // ------------------------------------------------------------------
 
-void vnrRelease(void*);
+// void vnrRelease(void*);
 void vnrMemoryQuery(size_t* used_by_renderer, size_t* used_by_tcnn);
 void vnrMemoryQueryPrint(const char* str);
 void vnrFreeTemporaryGPUMemory();

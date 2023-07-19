@@ -16,9 +16,10 @@ using namespace vnr::math;
 
 struct VolumeContext 
 {
-  MultiVolume desc;
+  vec3i     dims;
+  ValueType type;
+  range1f   range;
   box3f clipbox;
-
   virtual ~VolumeContext() {};
   virtual bool isNetwork() const = 0;
 };

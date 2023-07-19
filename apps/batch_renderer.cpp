@@ -235,5 +235,9 @@ main(int ac, char** av)
     std::cout << "\tcamera: " << from << std::endl;
     std::cout << "\t        " << at   << std::endl;
     std::cout << "\t        " << up   << std::endl;
+
+    // vnrFreeTemporaryGPUMemory();
+    vnrMemoryQueryPrint("[vnr]"); // Optional
+
     return 0;
 }

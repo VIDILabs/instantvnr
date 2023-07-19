@@ -296,6 +296,57 @@ load_regular_grid(const MultiVolume::File& desc,
   log() << "[vnr] normalized range " << value_range_normalized.lower << " " << value_range_normalized.upper << std::endl;
 }
 
+void normalize_regular_grid(
+  std::shared_ptr<char[]>& buffer,
+  vec3i dims, ValueType type, range1f minmax,
+  range1f& value_range_unnormalized, 
+  range1f& value_range_normalized
+)
+{
+  /* copy data to GPU */
+  const size_t count = (size_t)dims.x * dims.y * dims.z;
+
+  /* convert volume into floats */
+  range1f range;
+  {
+    if (minmax.is_empty()) {
+      switch (type) {
+      case VALUE_TYPE_UINT8: range = compute_scalar_fminmax<uint8_t>(buffer.get(), count); break;
+      case VALUE_TYPE_INT8: range = compute_scalar_fminmax<int8_t>(buffer.get(), count); break;
+      case VALUE_TYPE_UINT16: range = compute_scalar_fminmax<uint16_t>(buffer.get(), count); break;
+      case VALUE_TYPE_INT16: range = compute_scalar_fminmax<int16_t>(buffer.get(), count); break;
+      case VALUE_TYPE_UINT32: range = compute_scalar_fminmax<uint32_t>(buffer.get(), count); break;
+      case VALUE_TYPE_INT32: range = compute_scalar_fminmax<int32_t>(buffer.get(), count); break;
+      case VALUE_TYPE_FLOAT: range = compute_scalar_fminmax<float>(buffer.get(), count); break;
+      case VALUE_TYPE_DOUBLE: range = compute_scalar_fminmax<double>(buffer.get(), count); break;
+      default: throw std::runtime_error("unknown data type");
+      }
+    }
+    else {
+      range = minmax;
+    }
+
+    switch (type) {
+    case VALUE_TYPE_UINT8: buffer = convert_volume<uint8_t>  (buffer, count, range.lower, range.upper); break;
+    case VALUE_TYPE_INT8: buffer = convert_volume<int8_t>    (buffer, count, range.lower, range.upper); break;
+    case VALUE_TYPE_UINT16: buffer = convert_volume<uint16_t>(buffer, count, range.lower, range.upper); break;
+    case VALUE_TYPE_INT16: buffer = convert_volume<int16_t>  (buffer, count, range.lower, range.upper); break;
+    case VALUE_TYPE_UINT32: buffer = convert_volume<uint32_t>(buffer, count, range.lower, range.upper); break;
+    case VALUE_TYPE_INT32: buffer = convert_volume<int32_t>  (buffer, count, range.lower, range.upper); break;
+    case VALUE_TYPE_FLOAT: buffer = convert_volume<float>    (buffer, count, range.lower, range.upper); break;
+    case VALUE_TYPE_DOUBLE: buffer = convert_volume<double>  (buffer, count, range.lower, range.upper); break;
+    default: throw std::runtime_error("unknown data type");
+    }
+  }
+  value_range_unnormalized = range;
+  value_range_normalized.lower = 0.f;
+  value_range_normalized.upper = 1.f;
+  // std::tie(value_range_normalized.lower, value_range_normalized.upper) = vidi::parallel::compute_scalar_minmax<float>(buffer.get(), count, 0);
+
+  log() << "[vnr] unnormalized range " << value_range_unnormalized.lower << " " << value_range_unnormalized.upper << std::endl;
+  log() << "[vnr] normalized range " << value_range_normalized.lower << " " << value_range_normalized.upper << std::endl;
+}
+
 // ------------------------------------------------------------------
 //
 // ------------------------------------------------------------------

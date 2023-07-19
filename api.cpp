@@ -142,17 +142,31 @@ castNeuralVolume(vnrVolume self)
 
 // simple volume
 
+vnrVolume vnrCreateSimpleVolume(const void* data, vnr::vec3i dims, std::string type, vnr::range1f range, std::string sampling_mode)
+{
+  auto ret = std::make_shared<SimpleVolumeContext>();
+  ret->dims = dims;
+  ret->type = vnr::value_type(type);
+  ret->range = range;
+  ret->source.load(data, dims, type, range, sampling_mode);
+  ret->clipbox = box3f(vec3f(0), vec3f(1));
+  return ret;
+}
+
 vnrVolume vnrCreateSimpleVolume(const vnrJson& scene, std::string sampling_mode, bool save_loaded_volume)
 {
   auto ret = std::make_shared<SimpleVolumeContext>();
+  MultiVolume desc;
   if (scene.is_string()) {
-    create_json_volume(scene.get<std::string>(), ret->desc);
+    create_json_volume(scene.get<std::string>(), desc);
   }
   else {
-    create_json_volume_stringify(scene, ret->desc);
+    create_json_volume_stringify(scene, desc);
   }
-
-  ret->source.load(ret->desc, sampling_mode, save_loaded_volume);
+  ret->dims = desc.dims;
+  ret->type = desc.type;
+  ret->range = desc.range;
+  ret->source.load(desc, sampling_mode, save_loaded_volume);
   ret->clipbox = box3f(vec3f(0), vec3f(1));
   return ret;
 }
@@ -174,14 +188,15 @@ int vnrSimpleVolumeGetNumberOfTimeSteps(vnrVolume self)
 vnrVolume vnrCreateNeuralVolume(const json& config, vnrVolume groundtruth, bool online_macrocell_construction)
 {
   auto& source = castSimpleVolume(groundtruth)->source;
-
   auto ret = std::make_shared<NeuralVolumeContext>();
-  ret->desc = groundtruth->desc;
+  ret->dims = groundtruth->dims;
+  ret->type = groundtruth->type;
+  ret->range = groundtruth->range;
   if (config.is_string()) {
-    ret->neural.set_network(ret->desc.dims, config.get<std::string>(), &source, !online_macrocell_construction);
+    ret->neural.set_network(ret->dims, config.get<std::string>(), &source, !online_macrocell_construction);
   }
   else {
-    ret->neural.set_network_from_json(ret->desc.dims, config, &source, !online_macrocell_construction);
+    ret->neural.set_network_from_json(ret->dims, config, &source, !online_macrocell_construction);
   }
   ret->clipbox = box3f(vec3f(0), vec3f(1));
   return ret;
@@ -190,14 +205,14 @@ vnrVolume vnrCreateNeuralVolume(const json& config, vnrVolume groundtruth, bool 
 vnrVolume vnrCreateNeuralVolume(const json& config, vnr::vec3i dims)
 {
   auto ret = std::make_shared<NeuralVolumeContext>();
-  ret->desc.dims = dims;
-  ret->desc.type = vnr::VALUE_TYPE_FLOAT;
-  ret->desc.range = range1f(0, 1);
+  ret->dims = dims;
+  ret->type = vnr::VALUE_TYPE_FLOAT;
+  ret->range = range1f(0, 1);
   if (config.is_string()) {
-    ret->neural.set_network(ret->desc.dims, config.get<std::string>(), nullptr, false);
+    ret->neural.set_network(ret->dims, config.get<std::string>(), nullptr, false);
   }
   else {
-    ret->neural.set_network_from_json(ret->desc.dims, config, nullptr, false);
+    ret->neural.set_network_from_json(ret->dims, config, nullptr, false);
   }
   ret->clipbox = box3f(vec3f(0), vec3f(1));
   return ret;
@@ -280,13 +295,13 @@ void vnrNeuralVolumeSetParams(vnrVolume self, const vnr::json& params)
 double vnrNeuralVolumeGetPSNR(vnrVolume self, bool verbose)
 {
   auto nv = castNeuralVolume(self);
-  return nv->neural.get_psnr(self->desc.dims, !verbose);
+  return nv->neural.get_psnr(self->dims, !verbose);
 }
 
 double vnrNeuralVolumeGetSSIM(vnrVolume self, bool verbose)
 {
   auto nv = castNeuralVolume(self);
-  return nv->neural.get_mssim(self->desc.dims, !verbose);
+  return nv->neural.get_mssim(self->dims, !verbose);
 }
 
 double vnrNeuralVolumeGetTestingLoss(vnrVolume self)
@@ -329,8 +344,8 @@ void vnrVolumeSetClippingBox(vnrVolume self, vnr::vec3f lower, vnr::vec3f upper)
     transform = std::dynamic_pointer_cast<SimpleVolumeContext>(self)->source.get_data_transform();
   }
 
-  lower -= vec3f(self->desc.dims)/2;
-  upper -= vec3f(self->desc.dims)/2;
+  lower -= vec3f(self->dims)/2;
+  upper -= vec3f(self->dims)/2;
   lower = gdt::xfmPoint(transform.inverse(), lower);
   upper = gdt::xfmPoint(transform.inverse(), upper);
   self->clipbox.lower = lower;

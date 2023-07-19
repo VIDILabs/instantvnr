@@ -94,6 +94,21 @@ template<> inline __both__ ValueType value_type<int64_t >() { return VALUE_TYPE_
 template<> inline __both__ ValueType value_type<float   >() { return VALUE_TYPE_FLOAT;  }
 template<> inline __both__ ValueType value_type<double  >() { return VALUE_TYPE_DOUBLE; }
 
+inline ValueType value_type(std::string dtype)
+{
+    if      (dtype == "uint8")   return VALUE_TYPE_UINT8;
+    else if (dtype == "uint16")  return VALUE_TYPE_UINT16;
+    else if (dtype == "uint32")  return VALUE_TYPE_UINT32;
+    else if (dtype == "uint64")  return VALUE_TYPE_UINT64;
+    else if (dtype == "int8")    return VALUE_TYPE_INT8;
+    else if (dtype == "int16")   return VALUE_TYPE_INT16;
+    else if (dtype == "int32")   return VALUE_TYPE_INT32;
+    else if (dtype == "int64")   return VALUE_TYPE_INT64;
+    else if (dtype == "float32") return VALUE_TYPE_FLOAT;
+    else if (dtype == "float64") return VALUE_TYPE_DOUBLE;
+    throw std::runtime_error("unknown data type: " + dtype);
+}
+
 }
 
 

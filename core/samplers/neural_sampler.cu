@@ -54,26 +54,43 @@ __global__ void generate_coords(uint32_t n_elements, vec3i lower, vec3i size, ve
 
 CudaSampler::~CudaSampler()
 {
-  // TODO: cleanup 3D textures
-  // if (m_array) {
-  //   CUDA_CHECK_NOEXCEPT(cudaFreeArray(m_array));
-  //   m_array = NULL;
-  //   // util::total_n_bytes_allocated() -= tfn.alphas.length * sizeof(float);
-  // }
-  // if (data) {
-  //   CUDA_CHECK(cudaDestroyTextureObject(data));
-  //   data = 0;
-  // }
-  // dims = 0;
+  if (m_array) {
+    CUDA_CHECK_NOEXCEPT(cudaFreeArray(m_array));
+    util::total_n_bytes_allocated() -= m_dims.long_product() * sizeof(float);
+    m_array = NULL;
+  }
+
+  if (m_texture) {
+    CUDA_CHECK_NOEXCEPT(cudaDestroyTextureObject(m_texture));
+    m_texture = 0;
+  }
+}
+
+CudaSampler::CudaSampler(const void* data, vec3i dims, dtype type, range1f range, bool create_cuda_texture)
+  : m_dims(dims)
+  , m_type(VALUE_TYPE_FLOAT)
+{
+  m_current_data.reset((char *)data, [](char*) { /* does not own the data */ });
+  
+  // normalize & convert data if necessary ...
+  normalize_regular_grid(
+    m_current_data, dims, type, range, 
+    m_value_range_unnormalized, 
+    m_value_range_normalized
+  );
+
+  // generate a texture to represent the ground truth
+  if (create_cuda_texture) {
+    assert(!m_array);
+    assert(!m_texture);
+    CreateArray3DScalar<float>(m_array, m_texture, dims, SAMPLE_WITH_TRILINEAR_INTERPOLATION, (float*)m_current_data.get());
+  }
 }
 
 CudaSampler::CudaSampler(const MultiVolume::File& file, vec3i dims, dtype type, range1f range, bool create_cuda_texture, bool save_volume_to_debug)
   : m_dims(dims)
   , m_type(VALUE_TYPE_FLOAT)
 {
-  m_dims = dims;
-  m_type = VALUE_TYPE_FLOAT;
-
   load_regular_grid(file, dims, type, range, 
        m_current_data, 
        m_value_range_unnormalized, 
@@ -91,6 +108,8 @@ CudaSampler::CudaSampler(const MultiVolume::File& file, vec3i dims, dtype type, 
 
   // generate a texture to represent the ground truth
   if (create_cuda_texture) {
+    assert(!m_array);
+    assert(!m_texture);
     CreateArray3DScalar<float>(m_array, m_texture, dims, SAMPLE_WITH_TRILINEAR_INTERPOLATION, (float*)m_current_data.get());
   }
 }

@@ -27,6 +27,7 @@ public:
   virtual void sample_grid(void* d_coords, void* d_values, vec3i grid_origin, vec3i grid_dims, vec3f grid_spacing, cudaStream_t stream) {};
 
   vec3i rendering_dims() const { return m_rendering_dims; }
+  void set_rendering_dims(const vec3i& dims) { m_rendering_dims = dims; }
   affine3f transform() const { return m_transform; }
   void set_transform(const affine3f& xfm) { m_transform = xfm; }
   void set_current_volume_index(int index) { set_current_volume_timestamp(index); }
@@ -43,22 +44,6 @@ public:
 
 typedef std::shared_ptr<SamplerAPI> Sampler;
 
-// struct Sampler
-// {
-// private:
-//   using dtype = SamplerAPI::dtype;
-//   std::shared_ptr<SamplerAPI> impl;
-// public:
-//   Sampler() {}
-//   const SamplerAPI* get_impl() const { return impl.get(); }
-//   float lower() const { return impl->lower(); }
-//   float upper() const { return impl->upper(); }
-//   dtype type() const { return impl->type(); }
-//   cudaTextureObject_t texture() const { return impl->texture(); }
-//   vec3i rendering_dims() const { return m_dims; }
-//   affine3f transform() const { return m_transform; }
-// };
-
 struct SimpleVolume : VolumeObject {
 private:
   MultiVolume desc; // make it private!
@@ -70,6 +55,7 @@ public:
   MacroCell macrocell;
   std::string mode;
 
+  void load(const void* data, vec3i dims, std::string type, range1f range, std::string sampling_mode);
   void load(const MultiVolume& descriptor, std::string sampling_mode, bool save_volume = false);
 
   uint32_t get_num_timesteps() const { return (uint32_t)desc.data.size(); }

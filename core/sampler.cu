@@ -105,6 +105,27 @@ SimpleVolume::load(const MultiVolume& descriptor, std::string sampling_mode, boo
 }
 
 void 
+SimpleVolume::load(const void* data, vec3i dims, std::string type, range1f range, std::string sampling_mode)
+{
+  mode = sampling_mode;
+
+  desc.dims = dims;
+  desc.type = value_type(type);
+  desc.range = range;
+
+  sampler = std::make_shared<CudaSampler>(data, desc.dims, desc.type, desc.range, true);
+  sampler->set_rendering_dims(sampler->dims());
+  sampler->set_transform(affine3f::translate(vec3f(desc.dims) * -0.5f) * affine3f::scale(vec3f(desc.dims)));
+
+  tex = sampler->texture();
+  if (tex) {
+    macrocell.set_shape(desc.dims);
+    macrocell.allocate();
+    macrocell.compute_everything(tex);
+  }
+}
+
+void 
 SimpleVolume::set_current_timestep(int index) 
 { 
   sampler->set_current_volume_index(index); 
