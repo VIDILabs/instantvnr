@@ -77,6 +77,7 @@ public:
   int   get_network_features_per_level() const;
   void* get_network() const; // access the tcnn network in terms of raw pointer
 
+  void decode_volume(float* output, vec3i resolution) const;
   void save_reference_volume(std::string filename, vec3i resolution) const;
   void save_inference_volume(std::string filename, vec3i resolution) const;
 

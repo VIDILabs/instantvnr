@@ -137,6 +137,7 @@ int    vnrNeuralVolumeGetNumberOfBlobs(vnrVolume);
 void vnrNeuralVolumeTrain(vnrVolume, int steps, bool fast_mode, bool verbose = false);
 void vnrNeuralVolumeDecodeProgressive(vnrVolume);
 
+void vnrNeuralVolumeDecode(vnrVolume, float* output);
 void vnrNeuralVolumeDecodeInference(vnrVolume, std::string filename);
 void vnrNeuralVolumeDecodeReference(vnrVolume, std::string filename);
 

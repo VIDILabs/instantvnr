@@ -67,6 +67,93 @@ public:
   }
 };
 
+namespace vidi {
+enum VoxelType {
+  VOXEL_UINT8  = vnr::VALUE_TYPE_UINT8,
+  VOXEL_INT8   = vnr::VALUE_TYPE_INT8,
+  VOXEL_UINT16 = vnr::VALUE_TYPE_UINT16,
+  VOXEL_INT16  = vnr::VALUE_TYPE_INT16,
+  VOXEL_UINT32 = vnr::VALUE_TYPE_UINT32,
+  VOXEL_INT32  = vnr::VALUE_TYPE_INT32,
+  VOXEL_FLOAT  = vnr::VALUE_TYPE_FLOAT,
+  VOXEL_DOUBLE = vnr::VALUE_TYPE_DOUBLE,
+};
+} // namespace vidi
+#define VIDI_VOLUME_EXTERNAL_TYPE_ENUM
+#include <vidi_volume_reader.h>
+
+
+struct DataDesc {
+    int dimx = -1;
+    int dimy = -1;
+    int dimz = -1;
+    const char * dtype;
+
+    int numfields = 1;
+
+    float min = +1;
+    float max = -1;
+
+    bool enable_clipping = false;
+    float clipbox[6] = { 0 };
+
+    bool enable_scaling = false;
+    float scaling[3] = { 1, 1, 1 };
+
+    // variant 1 (flattened ND array)
+    std::vector<void*> fields;
+    void* fields_flatten = nullptr;
+
+    // variant 2
+    void * callback_context = nullptr;
+    void (*callback)(void* ctx, void*, void*, unsigned long long) = nullptr;
+};
+
+struct VolumeDesc_Structured {
+  DataDesc shape;
+  const char * filename;
+  unsigned long long offset;
+  bool is_big_endian;
+
+  void* dst;
+};
+
+void dvnrLoadData(VolumeDesc_Structured& desc)
+{   
+  void* &dst = desc.dst;
+
+  vidi::StructuredRegularVolumeDesc volume_desc;
+  volume_desc.dims.x = desc.shape.dimx;
+  volume_desc.dims.y = desc.shape.dimy;
+  volume_desc.dims.z = desc.shape.dimz;
+  volume_desc.type = (vidi::VoxelType)vnr::VALUE_TYPE_FLOAT;
+  volume_desc.offset = desc.offset;
+  volume_desc.is_big_endian = desc.is_big_endian;
+  vidi::read_volume_structured_regular(desc.filename, volume_desc, dst);
+}
+
+
+VolumeDesc_Structured data_1atm_heatrelease()
+{
+    VolumeDesc_Structured desc;
+
+    desc.shape.dimx = 1152;
+    desc.shape.dimy = 320;
+    desc.shape.dimz = 853;
+
+    desc.shape.dtype = "float32";
+    desc.offset = 0;
+    desc.filename = "data/datasets/1atm.heatrelease.3x.1152.320.853f32.bin";
+    desc.is_big_endian = false;
+
+    desc.shape.min = -3290981376;
+    desc.shape.max = 0;
+
+    // tfn = "data/visualization_1atmhr.json";
+    return desc;
+}
+
+
 /*! main entry point to this example - initially optix, print hello
   world, then exit */
 extern "C" int
@@ -81,7 +168,20 @@ main(int ac, char** av)
 
   vnrJson model = vnrCreateJsonText(args.config());
 
-  vnrVolume simple_volume = vnrCreateSimpleVolume(args.volume(), args.training_mode());
+
+  auto desc = data_1atm_heatrelease();
+  const size_t size = (size_t)desc.shape.dimx*(size_t)desc.shape.dimy*(size_t)desc.shape.dimz;
+  std::shared_ptr<char[]> buffer(new char[size * sizeof(float)]);
+  desc.dst = (void*)buffer.get();
+  dvnrLoadData(desc);
+
+  vnrVolume simple_volume = vnrCreateSimpleVolume(desc.dst, 
+    vnr::vec3i(desc.shape.dimx, desc.shape.dimy, desc.shape.dimz), "float32", 
+    vnr::range1f(desc.shape.min, desc.shape.max),
+    args.training_mode()
+  );
+
+  // vnrVolume simple_volume = vnrCreateSimpleVolume(args.volume(), args.training_mode());
   vnrVolume neural_volume;
 
 restart:
@@ -136,6 +236,9 @@ restart:
   vnrJson output;
   vnrNeuralVolumeSerializeParams(neural_volume, output);
   vnrSaveJsonBinary(output, "params.json");
+
+  simple_volume.reset();
+  neural_volume.reset();
 
   // vnrFreeTemporaryGPUMemory();
   vnrMemoryQueryPrint("[vnr]"); // Optional

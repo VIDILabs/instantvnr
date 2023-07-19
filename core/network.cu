@@ -174,10 +174,6 @@ public:
     cudaTextureObject_t& inference_tex() { return m_decoded_tex; }
   } m_trainer;
 
-  // DeviceTransferFunction tfn;
-  // cudaArray_t tfn_color_array_handler{};
-  // cudaArray_t tfn_alpha_array_handler{};
-
   TransferFunctionObject tfn;
 
   const size_t m_batch_size = 1 << 16;
@@ -280,7 +276,7 @@ public:
     const auto begin = thrust::device_ptr<float>(m_trainer.m_loss_buffer.data());
     *loss = thrust::reduce(begin, begin + m_batch_size, 0.f, thrust::plus<float>()) / m_batch_size;
   }
-  
+
   void infer_progressively_decode_volume()
   {
     static int b = 0; // blob index
@@ -315,8 +311,26 @@ public:
     TRACE_CUDA;
 
     b++; if (b * m_trainer.m_num_slices_per_blob >= dims.z) b = 0;
+  }
 
-    // m_inference_tex = m_trainer.m_decoded_tex; // inference texture might get updated
+  void decode_volume(float* output, vec3i dims) const
+  {
+    const auto rdims = 1.f / dims;
+    const auto batch = vec3i(dims.x, dims.y, 1);
+    const auto count = util::next_multiple<size_t>(batch.long_product(), 256);
+    GPUMemory<vec3f> slice_input(count);
+    GPUMemory<float> slice_value(count);
+    ProgressBar bar("[decoding volume]");
+    uint64_t bw = 0;
+    for (int z = 0; z < dims.z; ++z) {
+      util::linear_kernel(generate_coords, 0, 0, (uint32_t)count, vec3i(0,0,z), batch, rdims, (float*)slice_input.data());
+      GPUColumnMatrix x((float*)slice_input.data(), 3, (uint32_t)count);
+      GPUColumnMatrix y((float*)slice_value.data(), 1, (uint32_t)count);
+      m_neural->infer(x, y, 0);
+      slice_value.copy_to_host(output, count); output += count;
+      bar.update((float)z / dims.z);
+    }
+    bar.finalize();
   }
 
   void save_inference_volume(std::string filename, vec3i dims) const // save the actual decoded volume
@@ -517,9 +531,8 @@ public:
       const vec3i block_grid_offset = block_offset - crop;
       const vec3i block_grid = block + win_size - 1;
 
-      // reference
+      // reference & inference
       m_source->sampler->take_samples_grid(grid_input.data(), grid_reference.data(), block_grid_offset, block_grid, rdims, 0);
-      // inference
       m_neural->infer(network_in, network_out, 0);
 
       // calculate SSIM
@@ -575,27 +588,6 @@ public:
     }
     m_neural->deserialize_model(config);
 
-    // int3 num_blocks = make_int3((m_volume_data.dims().x + network_block_size.x - 1) / network_block_size.x,
-    //                             (m_volume_data.dims().y + network_block_size.y - 1) / network_block_size.y,
-    //                             (m_volume_data.dims().z + network_block_size.z - 1) / network_block_size.z);
-    //
-    // networks.reserve(num_blocks.x * num_blocks.y * num_blocks.z);
-    //
-    // for (int biz = 0; biz < num_blocks.z; ++biz) {
-    //   for (int biy = 0; biy < num_blocks.y; ++biy) {
-    //     for (int bix = 0; bix < num_blocks.x; ++bix) {
-    //       int3 lower = network_block_size * make_int3(bix, biy, biz);
-    //       int3 upper = min(network_block_size + lower, m_volume_data.dims());
-    //       TrainableVolume<3, 1> network;
-    //       network.init(config, reference_tex, inference_array);
-    //       network.reconfig_network(json::parse(config, nullptr, true, true));
-    //       network.resize_data(lower, upper, m_volume_data.dims(), 16, batch_size);
-    //       networks.push_back(std::move(network));
-    //     }
-    //   }
-    // }
-
-    // m_trainer.resize_data(vec3i(dims.x/2, 0, 0), vec3i(dims.x, dims.y, dims.z/2), dims, m_batch_size);
     resize_trainer(vec3i(0), m_dims, m_dims, m_batch_size);
 
     // construct macrocell
@@ -694,11 +686,7 @@ public:
 
 
 // ------------------------------------------------------------------
-// ------------------------------------------------------------------
-// ------------------------------------------------------------------
 //
-// ------------------------------------------------------------------
-// ------------------------------------------------------------------
 // ------------------------------------------------------------------
 
 NeuralVolume::NeuralVolume() : pimpl(new Impl()) {}
@@ -743,12 +731,6 @@ NeuralVolume::set_transfer_function(const std::vector<vec3f>& c, const std::vect
   // ranges are pre-computed. The inference macrocell data is updated for every training step because
   // the inference value ranges are online-trained.
   pimpl->update_inference_macrocell(pimpl->tfn.tfn);
-
-  // if (pimpl->m_source && pimpl->m_source->macrocell.allocated()) 
-  // {
-  //   pimpl->m_source->macrocell.update_max_opacity(pimpl->tfn.tfn, pimpl->m_infer_stream);
-  // }
-
 
   TRACE_CUDA;
 }
@@ -804,6 +786,12 @@ vec2f
 NeuralVolume::get_macrocell_psnr() const
 {
   return pimpl->get_macrocell_psnr();
+}
+
+void 
+NeuralVolume::decode_volume(float* output, vec3i resolution) const
+{
+  pimpl->decode_volume(output, resolution);
 }
 
 void

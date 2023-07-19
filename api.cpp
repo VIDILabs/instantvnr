@@ -246,6 +246,12 @@ void vnrNeuralVolumeDecodeProgressive(vnrVolume self)
   nv->neural.infer();
 }
 
+void vnrNeuralVolumeDecode(vnrVolume self, float* output)
+{
+  auto nv = castNeuralVolume(self);
+  nv->neural.decode_volume(output, nv->neural.get_data_dims());
+}
+
 void vnrNeuralVolumeDecodeInference(vnrVolume self, std::string filename)
 {
   auto nv = castNeuralVolume(self);
