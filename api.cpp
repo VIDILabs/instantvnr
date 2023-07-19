@@ -234,10 +234,10 @@ vnrVolume vnrCreateNeuralVolume(const json& params)
   return ret;
 }
 
-void vnrNeuralVolumeTrain(vnrVolume self, int steps, bool fast_mode)
+void vnrNeuralVolumeTrain(vnrVolume self, int steps, bool fast_mode, bool verbose)
 {
   auto nv = castNeuralVolume(self);
-  nv->neural.train(steps, fast_mode);
+  nv->neural.train(steps, fast_mode, verbose);
 }
 
 void vnrNeuralVolumeDecodeProgressive(vnrVolume self)

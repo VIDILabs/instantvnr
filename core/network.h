@@ -93,7 +93,7 @@ public:
   void test(float* loss);
 
   // trigger a training step
-  void train(size_t steps, bool fast_mode = false);
+  void train(size_t steps, bool fast_mode = false, bool verbose = false);
 
   // get current training statistics
   void statistics(Statistics& stats);

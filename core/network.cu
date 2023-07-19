@@ -228,7 +228,7 @@ public:
     m_trainer.m_upper = upper;
   }
 
-  void train(size_t steps, MacroCell* macrocell)
+  void train(size_t steps, MacroCell* macrocell, bool verbose)
   {
     if (!m_source) {
       std::cerr << "[error]: missing a reference volume." << std::endl; return;
@@ -239,23 +239,17 @@ public:
     const vec3f lower = vec3f(m_trainer.m_lower) / vec3f(m_trainer.m_gdims);
     const vec3f upper = vec3f(m_trainer.m_upper) / vec3f(m_trainer.m_gdims);
 
-    // float loss;
-
+    ProgressBar bar("[train]");
     for (int i = 0; i < steps; ++i) {
       m_source->sampler->take_samples(m_trainer.m_train_x->data(), m_trainer.m_train_y->data(), m_batch_size, stream, lower, upper);
-
       m_neural->train(*m_trainer.m_train_x, *m_trainer.m_train_y, stream);
-
-      if (macrocell) { // update macrocell
-        // util::linear_kernel(update_macrocell_explicit, 0, stream, m_batch_size, 
-        //                     (vec3f*)m_trainer.m_train_x->data(), 
-        //                     (float*)m_trainer.m_train_y->data(), 
-        //                     m_trainer.m_gdims, m_macrocell_dims, (float*)macrocell);
-        macrocell->update_explicit((vec3f*)m_trainer.m_train_x->data(), 
-                                   (float*)m_trainer.m_train_y->data(),
-                                   m_batch_size, stream);
+      // update macrocell
+      if (macrocell) {
+        macrocell->update_explicit((vec3f*)m_trainer.m_train_x->data(), (float*)m_trainer.m_train_y->data(), m_batch_size, stream);
       }
+      if (verbose) bar.update((float)i / steps);
     }
+    if (verbose) bar.finalize();
   }
 
   void test(float* loss)
@@ -767,13 +761,13 @@ NeuralVolume::statistics(Statistics& stat)
 }
 
 void
-NeuralVolume::train(size_t steps, bool fast_mode)
+NeuralVolume::train(size_t steps, bool fast_mode, bool verbose)
 {
   if (!pimpl->m_neural->valid()) return;
 
   auto* mcdata = (fast_mode && pimpl->m_macrocell.is_external()) ? nullptr : &pimpl->m_macrocell;
 
-  pimpl->train(steps, mcdata);
+  pimpl->train(steps, mcdata, verbose);
 
   if (!fast_mode) pimpl->update_inference_macrocell(pimpl->tfn.tfn);
 }
@@ -829,7 +823,7 @@ NeuralVolume::save_params_to_json(json& root) const
 {
   const auto& mc = pimpl->m_macrocell;
 
-  vidi::StackTimer time;
+  // vidi::StackTimer time;
 
   root["volume"] = {
     { "dims", {

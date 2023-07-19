@@ -134,7 +134,7 @@ double vnrNeuralVolumeGetTrainingLoss(vnrVolume);
 int    vnrNeuralVolumeGetTrainingStep(vnrVolume);
 int    vnrNeuralVolumeGetNumberOfBlobs(vnrVolume);
 
-void vnrNeuralVolumeTrain(vnrVolume, int steps, bool fast_mode);
+void vnrNeuralVolumeTrain(vnrVolume, int steps, bool fast_mode, bool verbose = false);
 void vnrNeuralVolumeDecodeProgressive(vnrVolume);
 
 void vnrNeuralVolumeDecodeInference(vnrVolume, std::string filename);
