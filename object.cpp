@@ -289,11 +289,17 @@ StructuredRegularVolume::~StructuredRegularVolume()
   self.tfn.alphas.length = 0;
 }
 
+StructuredRegularVolume::StructuredRegularVolume()
+{
+  CreateSbtPtr(0); /* upload to GPU */
+}
+
 CUdeviceptr
 StructuredRegularVolume::get_sbt_pointer(cudaStream_t stream)
 {
-  if (!GetSbtPtr())
-    return CreateSbtPtr(stream); /* upload to GPU */
+  if (!GetSbtPtr()) {
+    throw std::runtime_error("Volume device pointer not allocated");
+  }
   return GetSbtPtr();
 }
 

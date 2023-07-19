@@ -192,6 +192,7 @@ private:
 
 public:
   ~StructuredRegularVolume();
+  StructuredRegularVolume();
 
   CUdeviceptr get_sbt_pointer(cudaStream_t stream) override;
   void commit(cudaStream_t stream) override;

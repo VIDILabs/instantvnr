@@ -259,6 +259,7 @@ MainRenderer::init()
 
   framebuffer.create();
 
+#if defined(ENABLE_OPTIX)
   // generate SBT records for 
   std::map<ObjectType, std::vector<void*>> records;
   {
@@ -266,7 +267,6 @@ MainRenderer::init()
     it.first->second[0] = (void*)volume.get_sbt_pointer(optix_default_stream);
   }
 
-#if defined(ENABLE_OPTIX)
   // define BLAS groups
   std::vector<std::vector<OptixProgram::InstanceHandler>> blas;
   blas.push_back(std::vector<OptixProgram::InstanceHandler>{ volume_instance });
