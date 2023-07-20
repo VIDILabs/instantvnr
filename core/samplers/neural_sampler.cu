@@ -4,6 +4,9 @@
 using TCNN_NAMESPACE :: generate_random_uniform;
 using default_rng_t = TCNN_NAMESPACE :: default_rng_t;
 
+#include <thrust/device_ptr.h>
+#include <thrust/reduce.h>
+
 // #define TEST_SIREN 
 
 #ifdef ENABLE_LOGGING
@@ -18,11 +21,6 @@ static std::ostream null_output_stream(0);
 // ------------------------------------------------------------------
 
 namespace vnr {
-
-// namespace {
-// template<class T>
-// constexpr const T& clamp(const T& v, const T& lo, const T& hi) { return (v < lo) ? lo : (hi < v) ? hi : v; }
-// } // namespace
 
 // ------------------------------------------------------------------
 //
@@ -52,6 +50,41 @@ void random_dbuffer_uint64(uint64_t* d_buffer, size_t batch, uint64_t min, uint6
 // function defined in network.cu (line 51-68)
 __global__ void generate_coords(uint32_t n_elements, vec3i lower, vec3i size, vec3f rdims, float* __restrict__ coords);
 
+template<typename T>
+void normalize_buffer_device(const void* data, vec3i dims, range1f range, CUDABufferTyped<float>& d_floats, void *h_buffer = nullptr)
+{
+  const size_t count = (size_t)dims.x * (size_t)dims.y * (size_t)dims.z; // copy raw data to GPU
+
+  CUDABuffer d_buffer;
+  d_buffer.alloc_and_upload_async((T*)data, count, NULL);
+
+  double vmin;
+  double scale;
+  if (range.is_empty()) {
+    const auto d_ptr = thrust::device_ptr<T>((T*)d_buffer.d_pointer());
+    T value_max = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::min(), thrust::maximum<T>());
+    T value_min = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::max(), thrust::minimum<T>());
+    vmin = value_min;
+    scale = 1.0 / ((double)value_max - (double)value_min);
+  }
+  else {
+    vmin = range.lower;
+    scale = 1.0 / (range.upper - range.lower);
+  }
+
+  // for now, we convert everything to floats
+  d_floats.alloc(count*sizeof(float), NULL);
+  util::parallel_for_gpu(count, [in=(T*)d_buffer.d_pointer(), out=(float*)d_floats.d_pointer(), vmin, scale] __device__ (int64_t i) {
+    out[i] = (float)(((double)in[i]  - vmin) * scale);
+  });
+
+  d_buffer.free();
+
+  if (h_buffer) {
+    CUDA_CHECK(cudaMemcpy(h_buffer, d_floats.d_pointer(), count * sizeof(float), cudaMemcpyDeviceToHost));
+  }
+}
+
 CudaSampler::~CudaSampler()
 {
   if (m_array) {
@@ -70,21 +103,35 @@ CudaSampler::CudaSampler(const void* data, vec3i dims, dtype type, range1f range
   : m_dims(dims)
   , m_type(VALUE_TYPE_FLOAT)
 {
-  m_current_data.reset((char *)data, [](char*) { /* does not own the data */ });
-  
-  // normalize & convert data if necessary ...
-  normalize_regular_grid(
-    m_current_data, dims, type, range, 
-    m_value_range_unnormalized, 
-    m_value_range_normalized
-  );
+  // we dont use this data handler for sampling, but we keep it for other functionalities
+  const size_t count = (size_t)dims.x * (size_t)dims.y * (size_t)dims.z;
+  m_current_data.reset(new char[count * value_type_size(type)]);
+  // m_current_data.reset((char *)data, [](char*) { /* does not own the data */ });
+
+  CUDABufferTyped<float> d_floats;
+  switch (type) {
+  case VALUE_TYPE_UINT8:  normalize_buffer_device< uint8_t>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_INT8:   normalize_buffer_device<  int8_t>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_UINT16: normalize_buffer_device<uint16_t>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_INT16:  normalize_buffer_device< int16_t>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_UINT32: normalize_buffer_device<uint32_t>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_INT32:  normalize_buffer_device< int32_t>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_UINT64: normalize_buffer_device<uint64_t>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_INT64:  normalize_buffer_device< int64_t>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_FLOAT:  normalize_buffer_device<   float>(data, dims, range, d_floats, m_current_data.get()); break;
+  case VALUE_TYPE_DOUBLE: normalize_buffer_device<  double>(data, dims, range, d_floats, m_current_data.get()); break;
+  default: throw std::runtime_error("unsupported data type");
+  }
 
   // generate a texture to represent the ground truth
   if (create_cuda_texture) {
     assert(!m_array);
     assert(!m_texture);
-    CreateArray3DScalar<float>(m_array, m_texture, dims, SAMPLE_WITH_TRILINEAR_INTERPOLATION, (float*)m_current_data.get());
+    CreateArray3DScalar<float>(m_array, m_texture, dims, SAMPLE_WITH_TRILINEAR_INTERPOLATION); // create an empty texture
+    CopyLinearMemoryToArray<float>((float*)d_floats.d_pointer(), m_array, dims, cudaMemcpyDeviceToDevice);
   }
+
+  d_floats.free();
 }
 
 CudaSampler::CudaSampler(const MultiVolume::File& file, vec3i dims, dtype type, range1f range, bool create_cuda_texture, bool save_volume_to_debug)
@@ -139,13 +186,6 @@ CudaSampler::sample(void* d_input, void* d_output, size_t batch_size, const vec3
     coords[i] = p;
     tex3D<float>(values + i, volume, p.x, p.y, p.z);
   });
-
-  // float value_max = -float_large;
-  // float value_min = +float_large;
-  // const auto gt = thrust::device_ptr<float>((float*)d_output);
-  // value_max = thrust::reduce(gt, gt + batch_size, value_max, thrust::maximum<float>());
-  // value_min = thrust::reduce(gt, gt + batch_size, value_min, thrust::minimum<float>());
-  // printf("min %f, max %f\n", value_min, value_max);
 
   TRACE_CUDA;
 }

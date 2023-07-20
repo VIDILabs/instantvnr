@@ -12,11 +12,6 @@
 
 #include <cuda/cuda_buffer.h>
 
-// #include <thrust/copy.h>
-// #include <thrust/device_ptr.h>
-// #include <thrust/execution_policy.h>
-// #include <thrust/remove.h>
-
 #ifndef ADAPTIVE_SAMPLING
 #error "ADAPTIVE_SAMPLING is not defined"
 #endif
