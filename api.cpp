@@ -298,6 +298,12 @@ void vnrNeuralVolumeSetParams(vnrVolume self, const vnr::json& params)
   }
 }
 
+double vnrNeuralVolumeGetMSE(vnrVolume self, bool verbose)
+{
+  auto nv = castNeuralVolume(self);
+  return nv->neural.get_mse(self->dims, !verbose);
+}
+
 double vnrNeuralVolumeGetPSNR(vnrVolume self, bool verbose)
 {
   auto nv = castNeuralVolume(self);

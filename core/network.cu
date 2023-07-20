@@ -415,7 +415,7 @@ public:
     logging() << "[saving volume] min=" << value_min << " max=" << value_max << std::endl;
   }
 
-  float get_psnr(vec3i dims, bool quiet) const
+  float get_mse(vec3i dims, bool quiet) const
   {
     if (!m_source) {
       std::cerr << "[error]: missing a reference volume." << std::endl; return -1.f;
@@ -435,15 +435,14 @@ public:
     float* loss = (float*)coords.data();
 
     // compute MSE
-    float error_sum = 0.f;
-    float value_max = -float_large;
-    float value_min = +float_large;
+    double error_sum = 0.0;
 
     ProgressBar bar("[PSNR]");
 
     for (int z = 0; z < dims.z; z += batch.z) {
     for (int y = 0; y < dims.y; y += batch.y) {
     for (int x = 0; x < dims.x; x += batch.x) {
+
       const auto offset = vec3i(x, y, z);
       const auto block  = min(batch, dims - offset);
       const auto count = block.long_product();
@@ -462,10 +461,8 @@ public:
 
       // compute total error
       const auto begin = thrust::device_ptr<float>(loss);
-      error_sum = thrust::reduce(begin, begin + count, error_sum, thrust::plus<float>());
-      const auto gt = thrust::device_ptr<float>(values_reference.data());
-      value_max = thrust::reduce(gt, gt + count, value_max, thrust::maximum<float>());
-      value_min = thrust::reduce(gt, gt + count, value_min, thrust::minimum<float>());
+      error_sum += thrust::reduce(begin, begin + count, 0.f, thrust::plus<float>());
+
     }
     if (!quiet) bar.update((float)(z * dims.y + y) / (dims.y*dims.z));
     }
@@ -473,9 +470,18 @@ public:
     }
     if (!quiet) bar.finalize();
 
-    // compute psnr
-    const float range = value_max - value_min;
-    const float mse = error_sum / dims.long_product();
+    return (float)(error_sum / dims.long_product());
+  }
+
+  float get_psnr(vec3i dims, bool quiet) const
+  {
+    if (!m_source) {
+      std::cerr << "[error]: missing a reference volume." << std::endl; return -1.f;
+    }
+
+    // convert MSE to PSNR
+    const float range = 1.0; // NOTE we fix data range == 1 to match python implementation
+    const float mse = get_mse(dims, quiet);
     return (float)(10. * log10(range * range / mse));
   }
 
@@ -634,18 +640,13 @@ public:
         loss[i] = l2_loss((float)pred[i], (float)targ[i]);
       });
 
-      // compute value range
-      auto begin = thrust::device_ptr<float>(targ);
-      const float value_max = thrust::reduce(begin, begin + count, -float_large, thrust::maximum<float>());
-      const float value_min = thrust::reduce(begin, begin + count, +float_large, thrust::minimum<float>());
-      const float range = value_max - value_min;
-
       // compute MSE
-      begin = thrust::device_ptr<float>(loss);
+      auto begin = thrust::device_ptr<float>(loss);
       const auto error = thrust::reduce(begin, begin + count, 0.f, thrust::plus<float>()); 
       const float mse = error / count;
 
       // compute psnr
+      const float range = 1.0f;
       return (float)(10. * log10(range * range / mse));
     };
 
@@ -768,6 +769,12 @@ NeuralVolume::infer()
   if (!pimpl->m_neural->valid()) return;
 
   pimpl->infer_progressively_decode_volume();
+}
+
+float 
+NeuralVolume::get_mse(vec3i resolution, bool quiet) const
+{
+  return pimpl->get_mse(resolution, quiet);
 }
 
 float 

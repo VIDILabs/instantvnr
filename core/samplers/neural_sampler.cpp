@@ -181,6 +181,13 @@ template<typename IType>
 std::shared_ptr<char[]>
 convert_volume(std::shared_ptr<char[]> idata, size_t size, float vmin, float vmax)
 {
+  if (vmin > vmax) {
+    throw std::runtime_error("cannot convert data with vmin > vmax");
+  }
+  if (vmin == vmax) {
+    fprintf(stderr, "[warn] input volume is a constant volume, add a small epsilon value");
+    vmax += 1e-8f;
+  }
   std::shared_ptr<char[]> odata;
   odata.reset(new char[size * sizeof(float)]);
 
@@ -201,6 +208,13 @@ template<>
 std::shared_ptr<char[]>
 convert_volume<float>(std::shared_ptr<char[]> idata, size_t size, float vmin, float vmax)
 {
+  if (vmin > vmax) {
+    throw std::runtime_error("cannot convert data with vmin > vmax");
+  }
+  if (vmin == vmax) {
+    fprintf(stderr, "[warn] input volume is a constant volume, add a small epsilon value");
+    vmax += 1e-8f;
+  }
   tbb::parallel_for(size_t(0), size, [&](size_t idx) {
     auto* i = (float*)&idata[idx * sizeof(float)];
 #ifdef TEST_SIREN

@@ -127,6 +127,7 @@ vnrVolume vnrCreateNeuralVolume(const vnrJson& params);
 void vnrNeuralVolumeSetModel (vnrVolume, const vnrJson& config);
 void vnrNeuralVolumeSetParams(vnrVolume, const vnrJson& params);
 
+double vnrNeuralVolumeGetMSE(vnrVolume, bool verbose);
 double vnrNeuralVolumeGetPSNR(vnrVolume, bool verbose);
 double vnrNeuralVolumeGetSSIM(vnrVolume, bool verbose);
 double vnrNeuralVolumeGetTestingLoss(vnrVolume);

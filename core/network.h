@@ -68,6 +68,7 @@ public:
 
   uint32_t  get_num_blobs() const;
 
+  float get_mse(vec3i resolution, bool quiet = false) const;
   float get_psnr(vec3i resolution, bool quiet = false) const;
   float get_mssim(vec3i resolution, bool quiet = false) const;
   vec2f get_macrocell_psnr() const;
