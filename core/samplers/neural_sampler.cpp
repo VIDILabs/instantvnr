@@ -800,6 +800,7 @@ OpenVKLSampler::OpenVKLSampler(const std::string& example)
   rkcommon::math::vec3f gridSpacing(1.f / rkcommon::math::vec3f(dimensions));
   openvkl::testing::ProceduralStructuredRegularVolume<>::generateGridParameters(dimensions, boundingBoxSize, gridOrigin, gridSpacing);
 
+#if openvkl_OLD_API
   if (example == "XYZStructuredRegular")
     testing = std::make_shared<XYZStructuredRegularVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
   else if (example == "SphereStructuredRegular")
@@ -812,7 +813,9 @@ OpenVKLSampler::OpenVKLSampler(const std::string& example)
     testing = std::make_shared<SphereUnstructuredProceduralVolume>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing, VKL_HEXAHEDRON);
   else if (example == "WaveletUnstructuredProcedural")
     testing = std::make_shared<WaveletUnstructuredProceduralVolume>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing, VKL_HEXAHEDRON);
-  else if (example == "XYZVdb")
+  else
+#endif
+  if (example == "XYZVdb")
     testing = std::make_shared<XYZVdbVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);
   else if (example == "SphereVdb")
     testing = std::make_shared<SphereVdbVolumeFloat>(DEVICE_COMMA dimensions, gridOrigin, gridSpacing);

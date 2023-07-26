@@ -16,6 +16,7 @@
 #define TCNN_NEW_API
 #endif
 
+// #define TCNN_NEW_API
 
 #ifdef ENABLE_LOGGING
 #define logging() std::cout

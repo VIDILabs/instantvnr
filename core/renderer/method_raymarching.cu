@@ -255,8 +255,8 @@ MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, Shad
     if (network)
       do_raymarching_network(stream, params, network);
     else
-#endif
       do_raymarching_trivial(stream, params);
+#endif
   }
 }
 

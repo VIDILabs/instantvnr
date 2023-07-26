@@ -251,8 +251,8 @@ MethodPathTracing::render(cudaStream_t stream, const LaunchParams& _params, Devi
     if (network)
       do_path_tracing_network(stream, params, network);
     else
-#endif
       do_path_tracing_trivial(stream, params);
+#endif
   }
 }
 

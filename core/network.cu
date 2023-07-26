@@ -1047,6 +1047,7 @@ size_t NeuralVolume::total_n_bytes_allocated_by_tcnn()
 
 void NeuralVolume::free_temporary_gpu_memory_by_tcnn()
 {
+  // TCNN_NAMESPACE :: free_all_gpu_memory_arenas();
   TCNN_NAMESPACE :: gpu_memory_arenas().clear();
 }
 
