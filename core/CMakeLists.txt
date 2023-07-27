@@ -132,6 +132,7 @@ if(ENABLE_IN_SHADER)
   target_sources(${target} PRIVATE
     networks/tcnn_impl_decoder.cu
     networks/tcnn_impl_network.cu
+    # networks/tcnn_impl_batch.cu
     marching_cube.cu
   )
   target_compile_definitions(${target} PUBLIC ENABLE_IN_SHADER=1)

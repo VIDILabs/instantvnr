@@ -65,11 +65,6 @@ struct DeviceNeuralEncoder
                                    const float* __restrict__ input /* float[N_POS_DIMS] */,
                                    T* __restrict__ output_per_level /* T[N_FEATURES_PER_LEVEL] */) const;
 
-  void batch_encode(cudaStream_t stream,
-                    uint32_t num_elements,
-                    PitchedPtr<const float> inputs,
-                    PitchedPtr<T> outputs);
-
 public:
   const uint32_t num_levels;
   const uint32_t num_grid_features;
@@ -115,17 +110,6 @@ public:
     if (w.cols() % 16 != 0) throw std::runtime_error{std::string("weights must have a multiple-of-16 number of columns. ") + std::to_string(w.cols())};
     // clang-format on
   }
-
-  void batch_inference(cudaStream_t stream, const Matrix<T>& input, Matrix<float>& output);
-
-private:
-  void batch_inference_internal(cudaStream_t stream,
-                                Activation activation,
-                                Activation output_activation,
-                                const GPUMatrix<T, RM>& weights,
-                                const uint32_t n_hidden_layers,
-                                const Matrix<T>& input,
-                                Matrix<T>& output);
 
 public:
   const Activation activation;
@@ -226,14 +210,6 @@ public:
   __device__ __forceinline__ void init() const {}
 
   __device__ T sample(float3 coordinate) const;
-
-  void batch_sample(cudaStream_t stream, const Matrix<float>& coord, Matrix<float>& output);
-
-private:
-  void batch_sample_internal(cudaStream_t stream,
-                             const Activation ACTIVATION,
-                             const Matrix<float>& coord,
-                             Matrix<T>& output);
 };
 
 template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH>
@@ -340,7 +316,6 @@ using DeviceVolume64x2 = DeviceNeuralVolume<precision_t, TCNN_N_POS_DIMS, 2, 64>
 using DeviceVolume64x4 = DeviceNeuralVolume<precision_t, TCNN_N_POS_DIMS, 4, 64>;
 using DeviceVolume64x8 = DeviceNeuralVolume<precision_t, TCNN_N_POS_DIMS, 8, 64>;
 
-void tcnn_inference(network_t handler, cudaStream_t stream, const GPUMatrixDynamic<float>& input, GPUMatrixDynamic<float>& output);
 
 }
 }
