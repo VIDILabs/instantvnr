@@ -88,20 +88,20 @@ public:
   void load_params(std::string filename);
   void load_params_from_json(const json& params);
 
+  // trigger a training step
+  void train(size_t steps, bool fast_mode = false, bool verbose = false);
+
+  // inference the tcnn network
+  void inference(int len, const float* d_input, float* d_output, cudaStream_t stream);
+
   // trigger an inference step
-  void infer();
+  void decode_progressive();
 
   // trigger a testing step
   void test(float* loss);
 
-  // trigger a training step
-  void train(size_t steps, bool fast_mode = false, bool verbose = false);
-
   // get current training statistics
   void statistics(Statistics& stats);
-
-  // inference the tcnn network
-  void inference(int len, const float* d_input, float* d_output, cudaStream_t stream);
 
 public:
   struct Impl;

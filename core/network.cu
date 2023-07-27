@@ -277,7 +277,7 @@ public:
     *loss = thrust::reduce(begin, begin + m_batch_size, 0.f, thrust::plus<float>()) / m_batch_size;
   }
 
-  void infer_progressively_decode_volume()
+  void progressively_decode()
   {
     static int b = 0; // blob index
 
@@ -764,11 +764,11 @@ NeuralVolume::test(float* loss)
 }
 
 void
-NeuralVolume::infer()
+NeuralVolume::decode_progressive()
 {
   if (!pimpl->m_neural->valid()) return;
 
-  pimpl->infer_progressively_decode_volume();
+  pimpl->progressively_decode();
 }
 
 float 

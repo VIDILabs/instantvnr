@@ -243,7 +243,7 @@ void vnrNeuralVolumeTrain(vnrVolume self, int steps, bool fast_mode, bool verbos
 void vnrNeuralVolumeDecodeProgressive(vnrVolume self)
 {
   auto nv = castNeuralVolume(self);
-  nv->neural.infer();
+  nv->neural.decode_progressive();
 }
 
 void vnrNeuralVolumeDecode(vnrVolume self, float* output)
