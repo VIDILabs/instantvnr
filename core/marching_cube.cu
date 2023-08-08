@@ -97,6 +97,9 @@ struct VolumeDesc : public VolumeInfoBase, private Impl {
 public:
   VolumeDesc(float iso, vec3i dims, void* net) : VolumeInfoBase{dims, dims-1, iso}, Impl(net) {}
 
+  using Impl::create_encoder_ctx;
+  using Impl::create_network_ctx;
+
   template<typename K, typename... Types>
   void launch1D(K kernel, cudaStream_t stream, int32_t width, Types... args) const {
 #if CACHE_VOXEL_VALUES
@@ -173,6 +176,8 @@ __global__ void kComputeActiveVoxels(
   float values[8];
 #endif
   volume.compute_voxel_values(coord, values);
+
+  // printf("values (%f,%f,%f,%f,%f,%f,%f,%f)\n",values[0],values[1],values[2],values[3],values[4],values[5],values[6],values[7]);
 
   if (!invalid) 
   {

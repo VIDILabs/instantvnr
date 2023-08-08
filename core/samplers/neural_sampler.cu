@@ -64,7 +64,7 @@ void normalize_buffer_device(const void* data, vec3i dims, range1f range, CUDABu
     const auto d_ptr = thrust::device_ptr<T>((T*)d_buffer.d_pointer());
     T value_max = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::min(), thrust::maximum<T>());
     T value_min = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::max(), thrust::minimum<T>());
-    vmin = value_min;
+    vmin = (double)value_min;
     scale = 1.0 / ((double)value_max - (double)value_min);
   }
   else {

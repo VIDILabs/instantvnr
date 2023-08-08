@@ -483,7 +483,9 @@ main(int ac, const char** av)
 
   ovr::scene::Model model;
   model.type = ovr::scene::Model::GEOMETRIC_MODEL;
-  extract_isosurface(volume, args.isovalue(), model.geometry_model.geometry);
+  if (!extract_isosurface(volume, args.isovalue(), model.geometry_model.geometry)) {
+    throw std::runtime_error("initial threshold leads to no isosurface.");
+  }
  
   ovr::scene::Instance instance;
   instance.models.push_back(model);

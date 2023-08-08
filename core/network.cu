@@ -146,7 +146,7 @@ public:
   vec3i m_dims;
   affine3f m_transform;
 
-  SimpleVolume*                    m_source = nullptr; // optional
+  SimpleVolume* m_source = nullptr; // optional
   std::shared_ptr<AbstractNetwork> m_neural;
 
   MacroCell m_macrocell;
@@ -166,7 +166,7 @@ public:
     GPUMemory<float> m_loss_buffer;
     
     // specific to fully decode mode
-    cudaArray_t         m_decoded_array{}; // TODO release memory correctly
+    cudaArray_t m_decoded_array{}; // TODO release memory correctly
     cudaTextureObject_t m_decoded_tex{};
     size_t m_num_slices_per_blob{16};
     GPUMemory<float> m_inference_buffer;
@@ -183,7 +183,7 @@ public:
 public:
   Impl()
   {
-    CUDA_CHECK_THROW(cudaStreamCreate(&m_infer_stream));
+    CUDA_CHECK(cudaStreamCreate(&m_infer_stream));
     m_train_stream = m_infer_stream;
   }
 
@@ -200,16 +200,16 @@ public:
     assert(upper.x >= 0 && upper.x <= gdims.x && "valid volume index");
     assert(upper.y >= 0 && upper.y <= gdims.y && "valid volume index");
     assert(upper.z >= 0 && upper.z <= gdims.z && "valid volume index");
-
+    
     const auto dims = upper - lower;
     const auto num_coords = (size_t)dims.x * dims.y * m_trainer.m_num_slices_per_blob;
     const auto num_coords_padded = util::next_multiple<size_t>(num_coords, 256);
 
-    const auto INPUT_SIZE = m_neural->n_input();
-    const auto OUTPUT_SIZE = m_neural->n_output();
+    const auto INPUT_SIZE = m_neural->n_input_dims();
+    const auto OUTPUT_SIZE = m_neural->n_output_dims();
 
     // create training & inference buffers
-    m_trainer.m_inference_buffer = GPUMemory<float>(num_coords_padded * m_neural->n_input());
+    m_trainer.m_inference_buffer = GPUMemory<float>(num_coords_padded * INPUT_SIZE);
     m_trainer.m_infer_x = std::make_unique<GPUColumnMatrix>(m_trainer.m_inference_buffer.data(), INPUT_SIZE, (uint32_t)num_coords_padded);
     m_trainer.m_infer_y = std::make_unique<GPUColumnMatrix>(OUTPUT_SIZE, (uint32_t)num_coords_padded);
     m_trainer.m_train_x = std::make_unique<GPUColumnMatrix>(INPUT_SIZE,  (uint32_t)batch_size);
@@ -590,7 +590,7 @@ public:
 #endif
     }
     else {
-      m_neural = std::make_shared<TcnnNetwork<3, 1>>();
+      m_neural = std::make_shared<TcnnNetwork<VNR_INPUT_DIMS, VNR_OUTPUT_DIMS>>();
     }
     m_neural->deserialize_model(config);
 
@@ -739,7 +739,7 @@ NeuralVolume::set_transfer_function(const std::vector<vec3f>& c, const std::vect
 void
 NeuralVolume::statistics(Statistics& stat)
 {
-  stat.step = pimpl->m_neural->steps();
+  stat.step = pimpl->m_neural->training_step();
   stat.loss = pimpl->m_neural->training_loss();
 }
 
@@ -1020,23 +1020,20 @@ NeuralVolume::get_network() const
 int 
 NeuralVolume::get_network_width() const
 {
-  return pimpl->m_neural->FUSED_MLP_WIDTH();
+  return pimpl->m_neural->n_neurons();
 }
 
 int 
 NeuralVolume::get_network_features_per_level() const
 {
-  return pimpl->m_neural->N_FEATURES_PER_LEVEL();
+  return pimpl->m_neural->n_features_per_level();
 }
 
 void 
 NeuralVolume::inference(int len, const float* d_input, float* d_output, cudaStream_t stream)
 {
-  len = util::next_multiple<uint32_t>(len, 256);
-
-  GPUColumnMatrix input ((float*)d_input, pimpl->m_neural->n_input(), len);
-  GPUColumnMatrix output(d_output, pimpl->m_neural->n_output(), len);
-
+  GPUColumnMatrix input((float*)d_input, pimpl->m_neural->n_input_dims(), len);
+  GPUColumnMatrix output(d_output, pimpl->m_neural->n_output_dims(), len);
   pimpl->m_neural->infer(input, output, stream);
 }
 
@@ -1047,8 +1044,8 @@ size_t NeuralVolume::total_n_bytes_allocated_by_tcnn()
 
 void NeuralVolume::free_temporary_gpu_memory_by_tcnn()
 {
-  // TCNN_NAMESPACE :: free_all_gpu_memory_arenas();
-  TCNN_NAMESPACE :: gpu_memory_arenas().clear();
+  TCNN_NAMESPACE :: free_all_gpu_memory_arenas();
+  // TCNN_NAMESPACE :: gpu_memory_arenas().clear();
 }
 
 } // namespace vnr

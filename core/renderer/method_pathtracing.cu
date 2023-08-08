@@ -226,8 +226,8 @@ MethodPathTracing::render(cudaStream_t stream, const LaunchParams& _params, Devi
     params.org = define_buffer<vec3f>(begin, offset, numPixels);
     params.dir = define_buffer<vec3f>(begin, offset, numPixels);
     params.scatter_index = define_buffer<uint32_t>(begin, offset, numPixels);
-    params.sample_coord = define_buffer<vec3f>(begin, offset, numPixels);
-    params.sample_value = define_buffer<float>(begin, offset, numPixels);
+    params.sample_coord = define_buffer<vec3f>(begin, offset, util::next_multiple(numPixels,256U));
+    params.sample_value = define_buffer<float>(begin, offset, util::next_multiple(numPixels,256U));
     params.majorant = define_buffer<float>(begin, offset, numPixels);
     params.L = define_buffer<vec3f>(begin, offset, numPixels);
     params.throughput = define_buffer<vec3f>(begin, offset, numPixels);
@@ -786,7 +786,8 @@ iterative_sampling_groundtruth_kernel(uint32_t numRays, const PathTracingData pa
 void
 iterative_sampling_batch_inference(cudaStream_t stream, uint32_t numRays, const PathTracingData& params, NeuralVolume* network)
 {
-  network->inference(numRays, (float*)params.sample_coord, params.sample_value, stream);
+  // 'sample_coord' and 'sample_value' are allocated with padding
+  network->inference(util::next_multiple(numRays,256U), (float*)params.sample_coord, params.sample_value, stream);
 }
 
 inline bool 

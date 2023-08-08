@@ -215,8 +215,8 @@ MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, Shad
     size_t offset = 0;
 
     // allocate staging data
-    params.inference_input  = define_buffer<vec3f>(begin, offset, numPixels * nSamplesPerCoord);
-    params.inference_output = define_buffer<float>(begin, offset, numPixels * nSamplesPerCoord);
+    params.inference_input  = define_buffer<vec3f>(begin, offset, util::next_multiple(numPixels * nSamplesPerCoord, 256U));
+    params.inference_output = define_buffer<float>(begin, offset, util::next_multiple(numPixels * nSamplesPerCoord, 256U));
 
     // allocate payload data 
     params.alpha        = define_buffer<float>(begin, offset, numPixels);
@@ -915,9 +915,10 @@ iterative_sampling_groundtruth_kernel(uint32_t numRays, const RayMarchingData pa
 }
 
 void
-iterative_sampling_batch_inference(cudaStream_t stream, uint32_t numRays, const RayMarchingData& params, NeuralVolume* network)
+iterative_sampling_batch_inference(cudaStream_t stream, uint32_t count, const RayMarchingData& params, NeuralVolume* network)
 {
-  network->inference(numRays, (float*)params.inference_input, params.inference_output, stream);
+  // 'sample_coord' and 'sample_value' are allocated with padding
+  network->inference(util::next_multiple(count,256U), (float*)params.inference_input, params.inference_output, stream);
 }
 
 inline bool 

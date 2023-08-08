@@ -79,19 +79,12 @@ FvsrnNetwork::FvsrnNetwork() : pimpl(new Impl()) {}
 
 FvsrnNetwork::~FvsrnNetwork() { pimpl.reset(); }
 
-int 
-FvsrnNetwork::FUSED_MLP_WIDTH() const { return pimpl->defines.hidden_channels_div16 * 16; }
+int FvsrnNetwork::n_neurons() const { return pimpl->defines.hidden_channels_div16 * 16; }
 
-void* 
-FvsrnNetwork::network_direct_access() { return &pimpl->defines; }
+void* FvsrnNetwork::network_direct_access() { return &pimpl->defines; }
 
-void
-FvsrnNetwork::deserialize_params(const json& config)
-{
+void FvsrnNetwork::deserialize_params(const json& config) {
 	renderer::GlobalSettings s = fvsrn::global_settings();
-
-  // auto volnet = config["model"]["fvsrn"].get<std::string>();
-	// pimpl->net.loadNetwork(volnet);
 
 	json::binary_t volnet = config["params_binary"];
 
@@ -125,16 +118,12 @@ FvsrnNetwork::deserialize_params(const json& config)
 	CUDA_SYNC_CHECK();
 }
 
-void 
-FvsrnNetwork::deserialize_model(json config)
-{
+void FvsrnNetwork::deserialize_model(json config) {
   TRACE_CUDA;
   TRACE_CUDA;
 }
 
-void
-FvsrnNetwork::infer(const GPUMatrixDynamic<float>& coord, GPUMatrixDynamic<float>& output, cudaStream_t stream) const
-{
+void FvsrnNetwork::infer(const GPUMatrixDynamic<float>& coord, GPUMatrixDynamic<float>& output, cudaStream_t stream) const {
   TRACE_CUDA;
 
   assert(coord.layout() == TCNN_NAMESPACE :: MatrixLayout::ColumnMajor && "input coordinate should be a column major matrix");

@@ -85,7 +85,6 @@ add_library(${target} # SHARED
   sampler.cu
   sampler.h
 
-  networks/tcnn_impl.cu
   network.cu
   network.h
 
@@ -130,9 +129,8 @@ endif()
 
 if(ENABLE_IN_SHADER)
   target_sources(${target} PRIVATE
-    networks/tcnn_impl_decoder.cu
-    networks/tcnn_impl_network.cu
-    # networks/tcnn_impl_batch.cu
+    networks/tcnn_device_encoder.cu
+    networks/tcnn_device_network.cu
     marching_cube.cu
   )
   target_compile_definitions(${target} PUBLIC ENABLE_IN_SHADER=1)
