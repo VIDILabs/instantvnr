@@ -221,7 +221,7 @@ DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::Devic
   ASSERT_THROW(h_enc->padded_output_width() != 0, "incorrect output dimension");
 }
 
-static void check_shmem_error(cudaError_t error) {
+static void check_shmem(cudaError_t error) {
 	if (error != cudaSuccess) {
 		throw std::runtime_error{"DeviceNeuralVolume: insufficient shared memory available on the GPU. Reduce `n_neurons` instead."};
 	}
@@ -260,7 +260,7 @@ void DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::
 
   /* launch kernel */
   const dim3 blocks = { n_blocks, 1u, 1u };
-  check_shmem_error(cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)shmem_size));
+  check_shmem(cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)shmem_size));
 
   TRACE_CUDA;
   kernel<<<blocks, threads, shmem_size, stream>>>(This, args...);
