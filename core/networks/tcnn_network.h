@@ -227,7 +227,9 @@ public:
   void train(const GPUColumnMatrix& input, const GPUColumnMatrix& target, cudaStream_t stream) {
     TRACE_CUDA;
 
+#ifdef TCNN_NEW_API
     float loss;
+#endif
 
     try {
 #ifdef TCNN_NEW_API

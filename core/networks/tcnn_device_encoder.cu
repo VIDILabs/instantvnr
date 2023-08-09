@@ -13,8 +13,8 @@ encode(const EncoderCtx<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, HASH_TYPE>& ctx,
 
   if (level >= ((ctx.max_level * ctx.num_grid_features) / N_FEATURES_PER_LEVEL) + 1e-3f) return;
 
-  const T* __restrict__ grid = ctx.grid + ctx.hashmap_offset_table[level] * N_FEATURES_PER_LEVEL;
-  const uint32_t hashmap_size = ctx.hashmap_offset_table[level + 1] - ctx.hashmap_offset_table[level];
+  const T* __restrict__ grid = ctx.grid + ctx.offset_table.data[level] * N_FEATURES_PER_LEVEL;
+  const uint32_t hashmap_size = ctx.offset_table.data[level + 1] - ctx.offset_table.data[level];
 
   const float scale = grid_scale(level, ctx.log2_per_level_scale, ctx.base_resolution);
   const uint32_t resolution = grid_resolution(scale);

@@ -47,11 +47,14 @@ using Matrix = GPUMatrixDynamic<Type>;
 //
 // ------------------------------------------------------------------
 
+// NOTE: EncoderCtx is expensive to copy, use references always.
+
 template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, HashType HASH_TYPE>
 struct EncoderCtx {
   uint32_t num_levels;
   uint32_t num_grid_features;
-  uint32_t *hashmap_offset_table;
+  /*uint32_t *hashmap_offset_table;*/
+  GridOffsetTable offset_table;
   uint32_t base_resolution;
   float log2_per_level_scale;
   float quantize_threshold;
@@ -140,7 +143,7 @@ private:
   NetworkWithInputEncoding* handler{ nullptr };
 
 public:
-  void create_encoder_ctx(GPUMemory<uint32_t>& offset_table_device) const;
+  void create_encoder_ctx(/*GPUMemory<uint32_t>& offset_table_device*/) const;
   void create_network_ctx() const;
 
   DeviceNeuralVolume(void* h);
@@ -158,17 +161,18 @@ public:
 };
 
 template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH, HashType HASH_TYPE>
-void DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::create_encoder_ctx(GPUMemory<uint32_t>& offset_table_device) const {
+void DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::create_encoder_ctx(/*GPUMemory<uint32_t>& offset_table_device*/) const {
   auto* encoder = dynamic_cast<EncoderType*>(handler->m_encoding.get());
   ASSERT_THROW(encoder, "wrong encoding type");
   
-  // Uploade to GPU only once
-	offset_table_device.resize(encoder->m_n_levels + 1);
-	CUDA_CHECK(cudaMemcpy(offset_table_device.data(), encoder->m_offset_table.data, (encoder->m_n_levels+1) * sizeof(uint32_t), cudaMemcpyHostToDevice));
+  // // Uploade to GPU only once
+	// offset_table_device.resize(encoder->m_n_levels + 1);
+	// CUDA_CHECK(cudaMemcpy(offset_table_device.data(), encoder->m_offset_table.data, (encoder->m_n_levels+1) * sizeof(uint32_t), cudaMemcpyHostToDevice));
 
   enc.num_levels = encoder->m_n_levels;
   enc.num_grid_features = encoder->m_n_features;
-  enc.hashmap_offset_table = offset_table_device.data();
+  /*enc.hashmap_offset_table = offset_table_device.data();*/
+  enc.offset_table = encoder->m_offset_table;
   enc.base_resolution = encoder->m_base_resolution;
   enc.log2_per_level_scale = std::log2(encoder->m_per_level_scale);
   enc.quantize_threshold = encoder->m_quantize_threshold;
@@ -226,9 +230,9 @@ template<typename V, typename K, typename... Types>
 void DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::launch_general(const V& This, K kernel, cudaStream_t stream, const uint32_t requested_batch_size, Types... args) const {
   using namespace TCNN_NAMESPACE;
 
-	GPUMemory<uint32_t> offset_table_device;
+	// GPUMemory<uint32_t> offset_table_device;
 
-  This.create_encoder_ctx(offset_table_device);
+  This.create_encoder_ctx(/*offset_table_device*/);
   This.create_network_ctx();
 
   /* calculate launch dimensions */
