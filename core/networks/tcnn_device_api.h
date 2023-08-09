@@ -20,10 +20,6 @@
 
 #include <memory>
 
-TCNN_NAMESPACE_BEGIN
-void check_shmem_error(cudaError_t error);
-TCNN_NAMESPACE_END
-
 /* namespace instant neural volume */
 namespace vnr {
 namespace tcnn_impl {
@@ -223,6 +219,12 @@ DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::Devic
   // Validate Both 
   ASSERT_THROW(h_enc->padded_output_width() == h_mlp->m_input_width, "encoder and network have different width");
   ASSERT_THROW(h_enc->padded_output_width() != 0, "incorrect output dimension");
+}
+
+static void check_shmem_error(cudaError_t error) {
+	if (error != cudaSuccess) {
+		throw std::runtime_error{"DeviceNeuralVolume: insufficient shared memory available on the GPU. Reduce `n_neurons` instead."};
+	}
 }
 
 template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH, HashType HASH_TYPE>
