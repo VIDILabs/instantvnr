@@ -30,7 +30,7 @@
 # ======================================================================== #
 
 set(CMAKE_CXX_STANDARD  17)
-set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 14)
 
 if(NOT target)
   set(target instantvnr)

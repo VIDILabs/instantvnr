@@ -6,6 +6,7 @@
 #include <tiny-cuda-nn/gpu_memory_json.h>
 #include <tiny-cuda-nn/gpu_matrix.h>
 #include <tiny-cuda-nn/network_with_input_encoding.h>
+#include <tiny-cuda-nn/encodings/grid.h>
 
 #include <json/json.hpp>
 
@@ -56,9 +57,12 @@ using Loss                     = TCNN_NAMESPACE :: Loss<precision_t>;
 using Optimizer                = TCNN_NAMESPACE :: Optimizer<precision_t>;
 using Trainer                  = TCNN_NAMESPACE :: Trainer<float, precision_t, precision_t>;
 using NetworkWithInputEncoding = TCNN_NAMESPACE :: NetworkWithInputEncoding<precision_t>;
+using Encoding = TCNN_NAMESPACE :: Encoding<precision_t>;
 
 using TCNN_NAMESPACE :: create_loss;
 using TCNN_NAMESPACE :: create_optimizer;
+using TCNN_NAMESPACE :: create_grid_encoding;
+
 
 using network_t = std::shared_ptr<NetworkWithInputEncoding>;
 
@@ -107,6 +111,7 @@ private:
   mutable std::shared_ptr<tcnn_impl::Optimizer> m_optimizer;
   mutable std::shared_ptr<tcnn_impl::NetworkWithInputEncoding> m_network;
   mutable std::shared_ptr<tcnn_impl::Trainer> m_trainer;
+  mutable std::shared_ptr<tcnn_impl::Encoding> m_encoder;
 
 #ifdef TCNN_NEW_API
   std::unique_ptr<tcnn_impl::Trainer::ForwardContext> m_ctx;
@@ -190,17 +195,25 @@ public:
 
     m_loss.reset();
     m_optimizer.reset();
+    m_encoder.reset();
     m_network.reset();
     m_trainer.reset();
 
+    // CUDA_SYNC_CHECK();
+
     try {
-        m_loss = std::shared_ptr<Loss>{ create_loss<precision_t>(loss_opts) };
-        m_optimizer = std::shared_ptr<Optimizer>{ create_optimizer<precision_t>(optimizer_opts) };
-        m_network = std::make_shared<NetworkWithInputEncoding>(INPUT_SIZE, OUTPUT_SIZE, encoding_opts, network_opts);
-        m_trainer = std::make_shared<Trainer>(m_network, m_optimizer, m_loss, (uint32_t)time(NULL));
+      m_loss = std::shared_ptr<Loss>{ create_loss<precision_t>(loss_opts) };
+      m_optimizer = std::shared_ptr<Optimizer>{ create_optimizer<precision_t>(optimizer_opts) };
+      // NOTE: It is important to manually create the grid encoding here, despite the more convienient constructor exists.
+      //       Not doing so will lead to the following error with linking against the pytorch extension: 
+      //             CUDA sync error (.../core/networks/tcnn_network.h: line 202): __global__ function call is not configured
+      //       The reason is unclear.
+      m_encoder = std::shared_ptr<Encoding>{ create_grid_encoding<precision_t>(INPUT_SIZE, encoding_opts) };
+      m_network = std::make_shared<NetworkWithInputEncoding>(m_encoder, OUTPUT_SIZE, network_opts);
+      m_trainer = std::make_shared<Trainer>(m_network, m_optimizer, m_loss, (uint32_t)time(NULL));
     }
     catch (std::runtime_error& e) {
-        std::cerr << e.what() << std::endl;
+      std::cerr << e.what() << std::endl;
     }
 
     m_training_step = 0;
