@@ -41,9 +41,8 @@ if(OVR_BUILD_MODULE_NNVOLUME)
     target_include_directories(tiny-cuda-nn INTERFACE ${CMAKE_CURRENT_LIST_DIR}/tcnn/include)
     target_include_directories(tiny-cuda-nn INTERFACE ${CMAKE_CURRENT_LIST_DIR}/tcnn/dependencies)
     if(UNIX)
-      set_target_properties(tiny-cuda-nn PROPERTIES 
-        POSITION_INDEPENDENT_CODE ON
-      )
+      set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+      set_target_properties(tiny-cuda-nn PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endif()
   endif()
 

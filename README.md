@@ -13,11 +13,11 @@ Published in: IEEE Transactions on Visualization and Computer Graphics ( Early A
 
 - [X] Complete documentations
 - [X] Provide a docker container
+- [x] Support isosurface
+- [x] Support rendering with isosurfaces
+- [x] More modular sampling and training API
 - [ ] Document data configuration files
-- [ ] Support isosurface
-- [ ] Support rendering with isosurfaces
 - [ ] Support rendering with unstructured data clipping
-- [ ] More modular sampling and training API
 
 ### Abstract
 
