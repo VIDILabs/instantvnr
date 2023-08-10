@@ -113,10 +113,16 @@ SimpleVolume::load(const void* data, vec3i dims, std::string type, range1f range
   desc.type = value_type(type);
   desc.range = range;
 
-  sampler = std::make_shared<CudaSampler>(data, desc.dims, desc.type, desc.range, true);
+  if (mode == "GPU" || mode == "CUDA") {
+    sampler = std::make_shared<CudaSampler>(data, desc.dims, desc.type, desc.range, true);
+  }
+  else {
+    throw std::runtime_error("unknown sampler mode: " + mode);
+  }
+  
   sampler->set_rendering_dims(sampler->dims());
   sampler->set_transform(affine3f::translate(vec3f(desc.dims) * -0.5f) * affine3f::scale(vec3f(desc.dims)));
-
+  
   tex = sampler->texture();
   if (tex) {
     macrocell.set_shape(desc.dims);

@@ -504,6 +504,19 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
   }
 }
 
+void vnrMarchingCube(vnrVolume volume, vnrIsosurface isosurface, bool output_to_cuda_memory)
+{
+  vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
+}
+
+void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface> isosurfaces, bool output_to_cuda_memory)
+{
+  // TODO: more efficient implementation?
+  for (auto& isosurface : isosurfaces) {
+    vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
+  }
+}
+
 void vnrSaveTriangles(std::string filename, const vnr::vec3f* ptr, size_t size)
 {
   // Write output

@@ -98,6 +98,7 @@ CreateArray1DScalar(cudaStream_t stream, const std::vector<T>& input, cudaArray_
     if (array_handler) {
       CUDA_CHECK(cudaFreeArray(array_handler));
       array_handler = 0;
+      util::total_n_bytes_allocated() -= extent.width * sizeof(T);
     }
     if (output.data) {
       CUDA_CHECK(cudaDestroyTextureObject(output.data));
@@ -145,6 +146,7 @@ CreateArray1DFloat4(cudaStream_t stream, const std::vector<float4>& input, cudaA
     if (array_handler) {
       CUDA_CHECK(cudaFreeArray(array_handler));
       array_handler = 0;
+      util::total_n_bytes_allocated() -= extent.width * sizeof(float4);
     }
     if (output.data) {
       CUDA_CHECK(cudaDestroyTextureObject(output.data));

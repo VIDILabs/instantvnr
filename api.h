@@ -153,6 +153,18 @@ vnr::range1f vnrVolumeGetValueRange(vnrVolume);
 // ------------------------------------------------------------------
 //
 // ------------------------------------------------------------------
+struct vnrIsosurface {
+  float isovalue;   // input
+  vnr::vec3f** ptr; // output
+  size_t* size;     // output
+};
+void vnrMarchingCube(vnrVolume volume, vnrIsosurface isosurface, bool output_to_cuda_memory);
+void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface> isosurfaces, bool output_to_cuda_memory);
+void vnrSaveTriangles(std::string filename, const vnr::vec3f* ptr, size_t size);
+
+// ------------------------------------------------------------------
+//
+// ------------------------------------------------------------------
 
 vnrTransferFunction vnrCreateTransferFunction();
 vnrTransferFunction vnrCreateTransferFunction(const vnrJson& scene);
@@ -187,6 +199,6 @@ vnr::vec4f* vnrRendererMapFrame(vnrRenderer);
 
 // void vnrRelease(void*);
 void vnrMemoryQuery(size_t* used_by_renderer, size_t* used_by_tcnn);
-void vnrMemoryQueryPrint(const char* str);
+void vnrMemoryQueryPrint(const char* prompt);
 void vnrFreeTemporaryGPUMemory();
-void vnrCompilationStatus(const char* str);
+void vnrCompilationStatus(const char* prompt);

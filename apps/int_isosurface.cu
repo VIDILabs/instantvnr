@@ -404,6 +404,7 @@ public:
     glEnd();
 
     if (gui_enabled) {
+      ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(400, 100));
       if (ImGui::Begin("Control Panel", NULL)) {
         static float iso = 0.0f;
         if (ImGui::SliderFloat("Iso Value", &iso, 0.0f, 1.0f, "%.3f")) {
@@ -420,7 +421,7 @@ public:
     // Performance Graph
     if (gui_performance_enabled) {
       ImGui::SetNextWindowPos(ImVec2(/*padding*/2.0f, 2.0f));
-      ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200), ImVec2(FLT_MAX, FLT_MAX));
+      ImGui::SetNextWindowSizeConstraints(ImVec2(100, 180), ImVec2(FLT_MAX, FLT_MAX));
       if (ImGui::Begin("Performance", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
         if (ImPlot::BeginPlot("##Performance Plot", ImVec2(500,150), ImPlotFlags_AntiAliased | ImPlotFlags_NoFrame)) {
           ImPlot::SetupAxes("frame history", "time [ms]", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);

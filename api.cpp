@@ -556,25 +556,25 @@ void vnrRender(vnrRenderer self)
 //
 // ------------------------------------------------------------------
 
-void vnrMemoryQuery(size_t* used_by_renderer, size_t* used_by_tcnn)
+void vnrMemoryQuery(size_t* used_by_engine, size_t* used_by_tcnn)
 {
-  *used_by_renderer = util::total_n_bytes_allocated();
+  *used_by_engine = util::total_n_bytes_allocated();
   *used_by_tcnn = NeuralVolume::total_n_bytes_allocated_by_tcnn();
 }
 
 void vnrMemoryQueryPrint(const char* str)
 {
-  size_t used_by_renderer;
+  size_t used_by_engine;
   size_t used_by_tcnn;
   unsigned long long used_total;
-  vnrMemoryQuery(&used_by_renderer, &used_by_tcnn);
+  vnrMemoryQuery(&used_by_engine, &used_by_tcnn);
   util::getUsedGPUMemory(&used_total);
 
   printf("%s: total used %s, engine %s, tcnn %s, unknown %s\n", str,
          util::prettyBytes(used_total).c_str(),
-         util::prettyBytes(used_by_renderer).c_str(),
+         util::prettyBytes(used_by_engine).c_str(),
          util::prettyBytes(used_by_tcnn).c_str(),
-         util::prettyBytes(used_total - used_by_renderer - used_by_tcnn).c_str()
+         util::prettyBytes(used_total - used_by_engine - used_by_tcnn).c_str()
   );
 }
 
