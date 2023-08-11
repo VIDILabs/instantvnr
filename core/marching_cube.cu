@@ -494,6 +494,10 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
     doMarchingCubeTemplate(volume_info, vertices);
   }
 
+  if (vertices.size() == 0) {
+    std::cerr << "Warning: no vertices generated" << std::endl;
+  }
+
   *size = vertices.size();
   if (!cuda) {
     *ptr = new vec3f[*size];
