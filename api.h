@@ -197,8 +197,7 @@ vnr::vec4f* vnrRendererMapFrame(vnrRenderer);
 //
 // ------------------------------------------------------------------
 
-// void vnrRelease(void*);
-void vnrMemoryQuery(size_t* used_by_renderer, size_t* used_by_tcnn);
+void vnrMemoryQuery(size_t* used_by_renderer, size_t* used_by_tcnn, unsigned long long * used_total = NULL);
 void vnrMemoryQueryPrint(const char* prompt);
 void vnrFreeTemporaryGPUMemory();
 void vnrCompilationStatus(const char* prompt);
