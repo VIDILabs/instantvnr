@@ -64,7 +64,7 @@ endif()
 # renderer core
 # ======================================================================== #
 
-add_library(${target} # SHARED
+add_library(${target} SHARED
   renderer/method_pathtracing.cu
   renderer/method_pathtracing.h
   
@@ -124,7 +124,7 @@ if(ENABLE_OPTIX)
     renderer/method_optix.cu
     renderer/method_optix.cpp
   )
-  target_link_libraries(${target} PUBLIC OptiX::optix7)
+  target_link_libraries(${target} PRIVATE OptiX::optix7)
 endif()
 
 if(ENABLE_IN_SHADER)
@@ -159,8 +159,8 @@ PROPERTIES
 )
 
 target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_LIST_DIR})
-target_include_directories(${target} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)
-target_include_directories(${target} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../..)
+target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/..>)
+target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../..>)
 
 target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>)
 target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcudafe="--diag_suppress=177">)   # -> variable declared but not referenced
