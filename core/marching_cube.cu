@@ -393,7 +393,7 @@ void doComputeVertices(
 }
 
 template<typename VolumeInfo>
-void doMarchingCubeTemplate(const VolumeInfo& volume_info, CUDABufferTyped<vec3f>& vertices)
+double doMarchingCubeTemplate(const VolumeInfo& volume_info, CUDABufferTyped<vec3f>& vertices)
 {
   vidi::details::HighPerformanceTimer timer;
 
@@ -422,12 +422,12 @@ void doMarchingCubeTemplate(const VolumeInfo& volume_info, CUDABufferTyped<vec3f
   // Statistics
   timer.stop();
   const auto totaltime = timer.milliseconds();
-  std::cout << "Marching Cube Time = "<< totaltime / 1000.0 << "s"<< std::endl;
+  return totaltime / 1000.0;
 }
 
 /* network version */
 template<int N_FEATURES_PER_LEVEL>
-void doMarchingCubeTemplate__Network(const NeuralVolume& network, vec3i dims, float iso, CUDABufferTyped<vec3f>& vertices)
+double doMarchingCubeTemplate__Network(const NeuralVolume& network, vec3i dims, float iso, CUDABufferTyped<vec3f>& vertices)
 {
   int WIDTH = network.get_network_width();
   if (WIDTH == -1) {
@@ -458,6 +458,8 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
 {
   CUDABufferTyped<vec3f> vertices;
 
+  double et = 0.0;
+
   if (v->isNetwork()) {
     const auto ctx = std::dynamic_pointer_cast<NeuralVolumeContext>(v);
     const vec3i dims = ctx->dims;
@@ -470,17 +472,16 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
       throw std::runtime_error("Incorrect encoding method for in-shader rendering");
     }
   
-    if      (N_FEATURES_PER_LEVEL == 1) doMarchingCubeTemplate__Network<1>(network, dims, iso, vertices);
-    else if (N_FEATURES_PER_LEVEL == 2) doMarchingCubeTemplate__Network<2>(network, dims, iso, vertices);
-    else if (N_FEATURES_PER_LEVEL == 4) doMarchingCubeTemplate__Network<4>(network, dims, iso, vertices);
-    else if (N_FEATURES_PER_LEVEL == 8) doMarchingCubeTemplate__Network<8>(network, dims, iso, vertices);
+    if      (N_FEATURES_PER_LEVEL == 1) et = doMarchingCubeTemplate__Network<1>(network, dims, iso, vertices);
+    else if (N_FEATURES_PER_LEVEL == 2) et = doMarchingCubeTemplate__Network<2>(network, dims, iso, vertices);
+    else if (N_FEATURES_PER_LEVEL == 4) et = doMarchingCubeTemplate__Network<4>(network, dims, iso, vertices);
+    else if (N_FEATURES_PER_LEVEL == 8) et = doMarchingCubeTemplate__Network<8>(network, dims, iso, vertices);
     else throw std::runtime_error("expecting a simple volume");
   }
 
   else {
     const auto ctx = std::dynamic_pointer_cast<SimpleVolumeContext>(v);
     const vec3i dims = ctx->dims;
-    // printf("type = %d, dims = %d, %d, %d\n", (int)ctx->desc.type, dims.x, dims.y, dims.z);
 
     CUDABufferTyped<float> volume_data;
     {
@@ -491,14 +492,20 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
 
     VolumeDesc<void> volume_info(iso, dims, volume_data.d_pointer());
 
-    doMarchingCubeTemplate(volume_info, vertices);
+    et = doMarchingCubeTemplate(volume_info, vertices);
   }
 
-  if (vertices.size() == 0) {
-    std::cerr << "Warning: no vertices generated" << std::endl;
-  }
+  // std::cout << "Marching Cube Time = "<< et << "s"<< std::endl;
 
   *size = vertices.size();
+  if (vertices.size() == 0) {
+    std::cerr << "Warning: no vertices generated" << std::endl;
+    return;
+  }
+  // else {
+  //   std::cout << "Generated " << vertices.size() << " vertices" << std::endl;
+  // }
+
   if (!cuda) {
     *ptr = new vec3f[*size];
     vertices.download(*ptr, *size);
