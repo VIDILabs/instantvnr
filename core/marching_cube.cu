@@ -507,7 +507,7 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
   // }
 
   if (!cuda) {
-    *ptr = new vec3f[*size];
+    *ptr = (vec3f*)(new float[(*size) * 3]);
     vertices.download(*ptr, *size);
   }
   else {
