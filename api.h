@@ -120,9 +120,9 @@ void vnrSimpleVolumeSetCurrentTimeStep(vnrVolume, int time);
 int  vnrSimpleVolumeGetNumberOfTimeSteps(vnrVolume);
 
 // neural volume
-vnrVolume vnrCreateNeuralVolume(const vnrJson& config, vnrVolume groundtruth, bool online_macrocell_construction = true);
-vnrVolume vnrCreateNeuralVolume(const vnrJson& config, vnr::vec3i dims);
-vnrVolume vnrCreateNeuralVolume(const vnrJson& params);
+vnrVolume vnrCreateNeuralVolume(const vnrJson& config, vnrVolume groundtruth, bool online_macrocell_construction = true, size_t batchsize = 1 << 16);
+vnrVolume vnrCreateNeuralVolume(const vnrJson& config, vnr::vec3i dims, size_t batchsize = 1 << 16);
+vnrVolume vnrCreateNeuralVolume(const vnrJson& params, size_t batchsize = 1 << 16);
 
 void vnrNeuralVolumeSetModel (vnrVolume, const vnrJson& config);
 void vnrNeuralVolumeSetParams(vnrVolume, const vnrJson& params);

@@ -181,7 +181,7 @@ public:
   cudaStream_t m_train_stream{};
 
 public:
-  Impl()
+  Impl(size_t batchsize) : m_batch_size(batchsize)
   {
     CUDA_CHECK(cudaStreamCreate(&m_infer_stream));
     m_train_stream = m_infer_stream;
@@ -690,7 +690,7 @@ public:
 //
 // ------------------------------------------------------------------
 
-NeuralVolume::NeuralVolume() : pimpl(new Impl()) {}
+NeuralVolume::NeuralVolume(size_t batchsize) : pimpl(new Impl(batchsize)) {}
 
 NeuralVolume::~NeuralVolume() { 
   pimpl.reset(); 

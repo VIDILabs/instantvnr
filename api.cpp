@@ -185,10 +185,10 @@ int vnrSimpleVolumeGetNumberOfTimeSteps(vnrVolume self)
 
 // neural volume
 
-vnrVolume vnrCreateNeuralVolume(const json& config, vnrVolume groundtruth, bool online_macrocell_construction)
+vnrVolume vnrCreateNeuralVolume(const json& config, vnrVolume groundtruth, bool online_macrocell_construction, size_t batchsize)
 {
   auto& source = castSimpleVolume(groundtruth)->source;
-  auto ret = std::make_shared<NeuralVolumeContext>();
+  auto ret = std::make_shared<NeuralVolumeContext>(batchsize);
   ret->dims = groundtruth->dims;
   ret->type = groundtruth->type;
   ret->range = groundtruth->range;
@@ -202,9 +202,9 @@ vnrVolume vnrCreateNeuralVolume(const json& config, vnrVolume groundtruth, bool 
   return ret;
 }
 
-vnrVolume vnrCreateNeuralVolume(const json& config, vnr::vec3i dims)
+vnrVolume vnrCreateNeuralVolume(const json& config, vnr::vec3i dims, size_t batchsize)
 {
-  auto ret = std::make_shared<NeuralVolumeContext>();
+  auto ret = std::make_shared<NeuralVolumeContext>(batchsize);
   ret->dims = dims;
   ret->type = vnr::VALUE_TYPE_FLOAT;
   ret->range = range1f(0, 1);
@@ -218,7 +218,7 @@ vnrVolume vnrCreateNeuralVolume(const json& config, vnr::vec3i dims)
   return ret;
 }
 
-vnrVolume vnrCreateNeuralVolume(const json& params)
+vnrVolume vnrCreateNeuralVolume(const json& params, size_t batchsize)
 {
   vec3i dims;
   if (params.contains("volume")) {
@@ -229,7 +229,7 @@ vnrVolume vnrCreateNeuralVolume(const json& params)
   else {
     throw std::runtime_error("expecting a model config with volume dims tag");
   }
-  auto ret = vnrCreateNeuralVolume(params["model"], dims);
+  auto ret = vnrCreateNeuralVolume(params["model"], dims, batchsize);
   vnrNeuralVolumeSetParams(ret, params);
   return ret;
 }

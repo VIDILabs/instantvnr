@@ -36,6 +36,8 @@ struct NeuralVolumeContext : VolumeContext
   NeuralVolume neural;
   NeuralVolume::Statistics stats;
 
+  NeuralVolumeContext(size_t batchsize) : neural(batchsize) {}
+
   bool isNetwork() const override { return true; };
 };
 

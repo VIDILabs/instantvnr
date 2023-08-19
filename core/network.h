@@ -38,7 +38,7 @@ public:
   };
 
   ~NeuralVolume();
-  NeuralVolume();
+  NeuralVolume(size_t batchsize = 1 << 16);
   NeuralVolume(const NeuralVolume& other) = delete;
   NeuralVolume(NeuralVolume&& other) noexcept = default;
   NeuralVolume& operator=(const NeuralVolume& other) = delete;
