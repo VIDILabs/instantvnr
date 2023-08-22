@@ -29,7 +29,8 @@ using json = nlohmann::json;
 class NeuralVolume : public VolumeObject
 {
 public:
-  static size_t total_n_bytes_allocated_by_tcnn();
+  static size_t tot_nbytes_allocated_by_tcnn();
+  static size_t max_nbytes_allocated_by_tcnn();
   static void   free_temporary_gpu_memory_by_tcnn();
 
   struct Statistics {

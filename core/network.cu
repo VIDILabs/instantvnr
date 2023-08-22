@@ -19,7 +19,6 @@
 
 #include <cuda/cuda_buffer.h>
 #include <cuda/cuda_math.h>
-#include <cuda/texture.h>
 
 #include <cuda_runtime.h>
 
@@ -1055,15 +1054,28 @@ NeuralVolume::inference(int len, const float* d_input, float* d_output, cudaStre
   pimpl->m_neural->infer(input, output, stream);
 }
 
-size_t NeuralVolume::total_n_bytes_allocated_by_tcnn()
+size_t NeuralVolume::max_nbytes_allocated_by_tcnn()
+{
+  static std::atomic<size_t> maximum_value{0}; 
+
+  size_t value = tot_nbytes_allocated_by_tcnn();
+  size_t prev_value = maximum_value;
+  while(prev_value < value && !maximum_value.compare_exchange_weak(prev_value, value)) {}
+
+  return maximum_value;
+}
+
+size_t NeuralVolume::tot_nbytes_allocated_by_tcnn()
 {
   return TCNN_NAMESPACE :: total_n_bytes_allocated();
 }
 
 void NeuralVolume::free_temporary_gpu_memory_by_tcnn()
 {
+  max_nbytes_allocated_by_tcnn(); // foce an update
   TCNN_NAMESPACE :: free_all_gpu_memory_arenas();
   // TCNN_NAMESPACE :: gpu_memory_arenas().clear();
+  // std::cout << "[vnr] free temporary gpu memory" << std::endl;
 }
 
 } // namespace vnr

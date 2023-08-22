@@ -132,8 +132,9 @@ CreateArray1DScalarCUDA(const std::vector<T>& input, cudaStream_t stream)
     output.data = createCudaTexture<T>(array_handler, cudaReadModeNormalizedFloat, cudaFilterModeLinear, cudaFilterModeLinear, cudaAddressModeClamp, true);
   }
 
-  if (!output.rawptr)
-    CUDA_CHECK(cudaMallocAsync((void**)&output.rawptr, output.dims.v * sizeof(T), stream));
+  if (!output.rawptr) {
+    CUDA_CHECK(cudaTrackedMallocAsync((void**)&output.rawptr, output.dims.v * sizeof(T), stream));
+  }
 
   CUDA_CHECK(cudaMemcpyAsync(output.rawptr, (void*)input.data(), output.dims.v  * sizeof(T), cudaMemcpyHostToDevice, stream));
 
@@ -167,8 +168,9 @@ CreateArray1DScalarCUDA(array_1d_scalar_t input, const char* data)
     output.data = createCudaTexture<T>(array_handler, cudaReadModeNormalizedFloat, cudaFilterModeLinear, cudaFilterModeLinear, cudaAddressModeClamp, true);
   }
 
-  if (!output.rawptr)
-    CUDA_CHECK(cudaMallocAsync((void**)&output.rawptr, output.dims.v * sizeof(T), 0));
+  if (!output.rawptr) {
+    CUDA_CHECK(cudaTrackedMallocAsync((void**)&output.rawptr, output.dims.v * sizeof(T), 0));
+  }
 
   CUDA_CHECK(cudaMemcpyAsync(output.rawptr, (void*)data, output.dims.v  * sizeof(T), cudaMemcpyHostToDevice, 0));
 
@@ -236,8 +238,9 @@ CreateArray1DFloat4CUDA(const std::vector<vec4f>& input, cudaStream_t stream)
   output.scale.z = 1.f / (output.upper.z - output.lower.z);
   output.scale.w = 1.f / (output.upper.w - output.lower.w);
 
-  if (!output.rawptr)
-    CUDA_CHECK(cudaMallocAsync((void**)&output.rawptr, output.dims.long_product() * sizeof(vec4f), stream));
+  if (!output.rawptr) {
+    CUDA_CHECK(cudaTrackedMallocAsync((void**)&output.rawptr, output.dims.long_product() * sizeof(vec4f), stream));
+  }
 
   CUDA_CHECK(cudaMemcpyAsync(output.rawptr, (void*)input.data(), output.dims.long_product()  * sizeof(vec4f), cudaMemcpyHostToDevice, stream));
 
@@ -272,8 +275,9 @@ CreateArray1DFloat4CUDA(array_1d_float4_t input)
   output.scale.z = 1.f / (output.upper.z - output.lower.z);
   output.scale.w = 1.f / (output.upper.w - output.lower.w);
 
-  if (!output.rawptr)
-    CUDA_CHECK(cudaMallocAsync((void**)&output.rawptr, output.dims.long_product() * sizeof(vec4f), 0));
+  if (!output.rawptr) {
+    CUDA_CHECK(cudaTrackedMallocAsync((void**)&output.rawptr, output.dims.long_product() * sizeof(vec4f), 0));
+  }
 
   CUDA_CHECK(cudaMemcpyAsync(output.rawptr, (void*)input->data(), output.dims.long_product()  * sizeof(vec4f), cudaMemcpyHostToDevice, 0));
 

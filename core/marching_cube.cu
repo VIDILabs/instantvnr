@@ -1,4 +1,3 @@
-#include "marching_cube.cuh"
 #include "marching_cube_constants.cuh"
 
 #include <api.h>
@@ -7,6 +6,8 @@
 #include "instantvnr_types.h"
 #include "samplers/neural_sampler.h"
 #include "networks/tcnn_device_api.h"
+
+#include <cuda/cuda_utils.h>
 
 #include <vidi_highperformance_timer.h>
 
@@ -265,7 +266,7 @@ auto doExclusiveSum(int32_t num_items, const CUDABufferTyped<T> &input, CUDABuff
   CUDA_CHECK(cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out, num_items));
 
   // Allocate temporary storage
-  CUDA_CHECK(cudaMalloc(&d_temp_storage, temp_storage_bytes));
+  CUDA_CHECK(cudaTrackedMalloc(&d_temp_storage, temp_storage_bytes));
 
   // Run exclusive prefix sum
   CUDA_CHECK(cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out, num_items));
@@ -277,7 +278,7 @@ auto doExclusiveSum(int32_t num_items, const CUDABufferTyped<T> &input, CUDABuff
   CUDA_CHECK(cudaMemcpy(&sLast, d_out + num_items - 1, sizeof(sLast), cudaMemcpyDeviceToHost));
 
   // Cleanup
-  CUDA_CHECK(cudaFree(d_temp_storage));
+  CUDA_CHECK(cudaTrackedFree(d_temp_storage, temp_storage_bytes));
   return vLast + sLast;
 }
 
@@ -300,7 +301,7 @@ auto doStreamCompact(int32_t num_items, const CUDABufferTyped<T> &values, const 
   const T       *d_in    = values.d_pointer();    // e.g., [1, 2, 3, 4, 5, 6, 7, 8]
   T             *d_out   = compacted.d_pointer(); // e.g., [ ,  ,  ,  ,  ,  ,  ,  ]
   int32_t       *d_num_selected_out = NULL;       // e.g., [ ]
-  CUDA_CHECK(cudaMalloc(&d_num_selected_out, sizeof(int32_t)));
+  CUDA_CHECK(cudaTrackedMalloc(&d_num_selected_out, sizeof(int32_t)));
 
   // Determine temporary device storage requirements
   void *d_temp_storage = NULL;
@@ -308,19 +309,19 @@ auto doStreamCompact(int32_t num_items, const CUDABufferTyped<T> &values, const 
   CUDA_CHECK(cub::DevicePartition::Flagged(d_temp_storage, temp_storage_bytes, d_in, d_flags, d_out, d_num_selected_out, num_items));
   
   // Allocate temporary storage
-  CUDA_CHECK(cudaMalloc(&d_temp_storage, temp_storage_bytes));
+  CUDA_CHECK(cudaTrackedMalloc(&d_temp_storage, temp_storage_bytes));
   
   // Run selection
   CUDA_CHECK(cub::DevicePartition::Flagged(d_temp_storage, temp_storage_bytes, d_in, d_flags, d_out, d_num_selected_out, num_items));
   CUDA_CHECK(cudaDeviceSynchronize());
   // d_out                 <-- [1, 4, 6, 7, 8, 5, 3, 2]
   // d_num_selected_out    <-- [4]
-  CUDA_CHECK(cudaFree(d_temp_storage));
+  CUDA_CHECK(cudaTrackedFree(d_temp_storage, temp_storage_bytes));
   
   // Return
   int32_t num_selected_out;
   CUDA_CHECK(cudaMemcpy(&num_selected_out, d_num_selected_out, sizeof(num_selected_out), cudaMemcpyDeviceToHost));
-  CUDA_CHECK(cudaFree(d_num_selected_out));
+  CUDA_CHECK(cudaTrackedFree(d_num_selected_out, sizeof(int32_t)));
 
   // Shrink
   if (shrink) {
@@ -396,7 +397,7 @@ template<typename VolumeInfo>
 double doMarchingCubeTemplate(const VolumeInfo& volume_info, CUDABufferTyped<vec3f>& vertices)
 {
   vidi::details::HighPerformanceTimer timer;
-
+  timer.reset(); 
   timer.start();
 
   /* Marching Cubes execution has 5 steps
@@ -515,14 +516,14 @@ double vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, b
   return et;
 }
 
-void vnrMarchingCube(vnrVolume volume, vnrIsosurface isosurface, bool output_to_cuda_memory)
+void vnrMarchingCube(vnrVolume volume, vnrIsosurface& isosurface, bool output_to_cuda_memory)
 {
   isosurface.et = vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
 }
 
-void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface> isosurfaces, bool output_to_cuda_memory)
+void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface>& isosurfaces, bool output_to_cuda_memory)
 {
-  // TODO: more efficient implementation?
+  // TODO: more efficient implementation ...
   for (auto& isosurface : isosurfaces) {
     isosurface.et = vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
   }

@@ -159,8 +159,9 @@ struct vnrIsosurface {
   size_t* size;     // output
   double et = 0.0;   // output
 };
-void vnrMarchingCube(vnrVolume volume, vnrIsosurface isosurface, bool output_to_cuda_memory);
-void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface> isosurfaces, bool output_to_cuda_memory);
+double vnrMarchingCube(vnrVolume volume, float isovalue, vnr::vec3f** ptr, size_t* size, bool cuda);
+void vnrMarchingCube(vnrVolume volume, vnrIsosurface& isosurface, bool output_to_cuda_memory);
+void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface>& isosurfaces, bool output_to_cuda_memory);
 void vnrSaveTriangles(std::string filename, const vnr::vec3f* ptr, size_t size);
 
 // ------------------------------------------------------------------
@@ -198,7 +199,7 @@ vnr::vec4f* vnrRendererMapFrame(vnrRenderer);
 //
 // ------------------------------------------------------------------
 
-void vnrMemoryQuery(size_t* used_by_renderer, size_t* used_by_tcnn, unsigned long long * used_total = NULL);
+void vnrMemoryQuery(size_t* used_by_self, size_t* used_by_tcnn, size_t* used_peak, size_t* used_total);
 void vnrMemoryQueryPrint(const char* prompt);
 void vnrFreeTemporaryGPUMemory();
 void vnrCompilationStatus(const char* prompt);

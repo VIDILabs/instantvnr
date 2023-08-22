@@ -245,46 +245,46 @@ MeshGeometry::buildas(OptixDeviceContext optixContext, cudaStream_t stream)
 StructuredRegularVolume::~StructuredRegularVolume()
 {
   if (tfn_color_array_handler) {
-    CUDA_CHECK_NOEXCEPT(cudaFreeArray(tfn_color_array_handler));
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFreeArray(tfn_color_array_handler));
     tfn_color_array_handler = NULL;
-    util::total_n_bytes_allocated() -= self.tfn.colors.length * sizeof(float4);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    printf("[mem] Array1D free %s\n", util::prettyBytes(self.tfn.colors.length * sizeof(float4)).c_str());
-#endif
+//     util::total_n_bytes_allocated() -= self.tfn.colors.length * sizeof(float4);
+// #ifdef VNR_VERBOSE_MEMORY_ALLOCS
+//     printf("[mem] Array1D free %s\n", util::prettyBytes(self.tfn.colors.length * sizeof(float4)).c_str());
+// #endif
   }
   if (self.tfn.colors.data) {
     CUDA_CHECK_NOEXCEPT(cudaDestroyTextureObject(self.tfn.colors.data));
     self.tfn.colors.data = { 0 };
   }
   if (self.tfn.colors.rawptr) {
-    CUDA_CHECK_NOEXCEPT(cudaFree(self.tfn.colors.rawptr));
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFree(self.tfn.colors.rawptr, self.tfn.colors.length * sizeof(float4)));
     self.tfn.colors.rawptr = nullptr;
-    util::total_n_bytes_allocated() -= self.tfn.colors.length * sizeof(float4);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    printf("[mem] Linear free %s\n", util::prettyBytes(self.tfn.colors.length * sizeof(float4)).c_str());
-#endif
+//     util::total_n_bytes_allocated() -= self.tfn.colors.length * sizeof(float4);
+// #ifdef VNR_VERBOSE_MEMORY_ALLOCS
+//     printf("[mem] Linear free %s\n", util::prettyBytes(self.tfn.colors.length * sizeof(float4)).c_str());
+// #endif
   }
   self.tfn.colors.length = 0;
 
   if (tfn_alpha_array_handler) {
-    CUDA_CHECK_NOEXCEPT(cudaFreeArray(tfn_alpha_array_handler));
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFreeArray(tfn_alpha_array_handler));
     tfn_color_array_handler = NULL;
-    util::total_n_bytes_allocated() -= self.tfn.alphas.length * sizeof(float);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    printf("[mem] Array1D free %s\n", util::prettyBytes(self.tfn.alphas.length * sizeof(float)).c_str());
-#endif
+//     util::total_n_bytes_allocated() -= self.tfn.alphas.length * sizeof(float);
+// #ifdef VNR_VERBOSE_MEMORY_ALLOCS
+//     printf("[mem] Array1D free %s\n", util::prettyBytes(self.tfn.alphas.length * sizeof(float)).c_str());
+// #endif
   }
   if (self.tfn.alphas.data) {
     CUDA_CHECK_NOEXCEPT(cudaDestroyTextureObject(self.tfn.alphas.data));
     self.tfn.alphas.data = { 0 };
   }
   if (self.tfn.alphas.rawptr) {
-    CUDA_CHECK_NOEXCEPT(cudaFree(self.tfn.alphas.rawptr));
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFree(self.tfn.alphas.rawptr, self.tfn.alphas.length * sizeof(float)));
     self.tfn.alphas.rawptr = nullptr;
-    util::total_n_bytes_allocated() -= self.tfn.alphas.length * sizeof(float);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    printf("[mem] Linear free %s\n", util::prettyBytes(self.tfn.alphas.length * sizeof(float)).c_str());
-#endif
+//     util::total_n_bytes_allocated() -= self.tfn.alphas.length * sizeof(float);
+// #ifdef VNR_VERBOSE_MEMORY_ALLOCS
+//     printf("[mem] Linear free %s\n", util::prettyBytes(self.tfn.alphas.length * sizeof(float)).c_str());
+// #endif
   }
   self.tfn.alphas.length = 0;
 }

@@ -88,8 +88,8 @@ void normalize_buffer_device(const void* data, vec3i dims, range1f range, CUDABu
 CudaSampler::~CudaSampler()
 {
   if (m_array) {
-    CUDA_CHECK_NOEXCEPT(cudaFreeArray(m_array));
-    util::total_n_bytes_allocated() -= m_dims.long_product() * sizeof(float);
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFreeArray(m_array));
+    // util::total_n_bytes_allocated() -= m_dims.long_product() * sizeof(float);
     m_array = NULL;
   }
 
