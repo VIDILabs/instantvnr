@@ -42,6 +42,34 @@
 #include <vector>
 #include <ctime>
 
+// make a private version of thrust::plus to avoid template instantiation conflicts ...
+namespace {
+
+template<typename T>
+struct plus {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T &lhs, const T &rhs) const { return lhs + rhs; }
+}; // end plus
+
+template<typename T>
+T parallel_sum_gpu(const T* __restrict__ data, size_t count, cudaStream_t stream = nullptr) {
+  const auto begin = thrust::device_ptr<const T>(data);
+  const auto end = begin + count;
+  return thrust::reduce(thrust::cuda::par.on(stream), begin, end, T(0), plus<T>());
+}
+
+template<typename T>
+void parallel_minmax_gpu(const T* __restrict__ data, size_t count, T& init_min, T& init_max, cudaStream_t stream = nullptr) {
+  const auto begin = thrust::device_ptr<const T>(data);
+  const auto end = begin + count;
+  init_min = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_min, thrust::minimum<T>());
+  init_max = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_max, thrust::maximum<T>());
+}
+
+}
+
 namespace vnr {
 
 // ------------------------------------------------------------------
@@ -273,8 +301,7 @@ public:
       output[i] = l1_loss(pred[i], target[i]);
     });
 
-    const auto begin = thrust::device_ptr<float>(m_trainer.m_loss_buffer.data());
-    *loss = thrust::reduce(begin, begin + m_batch_size, 0.f, thrust::plus<float>()) / m_batch_size;
+    *loss = parallel_sum_gpu(m_trainer.m_loss_buffer.data(), m_batch_size, stream) / m_batch_size;
   }
 
   void progressively_decode()
@@ -360,9 +387,7 @@ public:
       slice_value.copy_to_host(values);
       vidi::filemap_random_write_update(w, bw, values.data(), sizeof(float) * count);
 
-      const auto gt = thrust::device_ptr<float>(slice_value.data());
-      value_max = thrust::reduce(gt, gt + count, value_max, thrust::maximum<float>());
-      value_min = thrust::reduce(gt, gt + count, value_min, thrust::minimum<float>());
+      parallel_minmax_gpu(slice_value.data(), count, value_min, value_max);
 
       bar.update((float)z / dims.z);
     }
@@ -400,9 +425,7 @@ public:
 
       ofile.write((char *)values.data(), sizeof(float) * count);
 
-      const auto gt = thrust::device_ptr<float>(slice_value.data());
-      value_max = thrust::reduce(gt, gt + count, value_max, thrust::maximum<float>());
-      value_min = thrust::reduce(gt, gt + count, value_min, thrust::minimum<float>());
+      parallel_minmax_gpu(slice_value.data(), count, value_min, value_max);
 
       bar.update((float)z / dims.z);
     }
@@ -460,9 +483,7 @@ public:
       });
 
       // compute total error
-      const auto begin = thrust::device_ptr<float>(loss);
-      error_sum += thrust::reduce(begin, begin + count, 0.f, thrust::plus<float>());
-
+      error_sum += parallel_sum_gpu(loss, count);
     }
     if (!quiet) bar.update((float)(z * dims.y + y) / (dims.y*dims.z));
     }
@@ -549,8 +570,7 @@ public:
       grid_input.copy_to_host(S.data(), block.long_product());
 
       // compute total ssim
-      const auto begin = thrust::device_ptr<float>(output);
-      ssim_sum += thrust::reduce(begin, begin + block_count, (float) 0, thrust::plus<float>());
+      ssim_sum += parallel_sum_gpu(output, block_count);
     }
     if (!quiet) bar.update((float)(z * dims.y + y) / (dims.y*dims.z));
     }
@@ -641,9 +661,7 @@ public:
       });
 
       // compute MSE
-      auto begin = thrust::device_ptr<float>(loss);
-      const auto error = thrust::reduce(begin, begin + count, 0.f, thrust::plus<float>()); 
-      const float mse = error / count;
+      const float mse = parallel_sum_gpu(loss, count) / count;
 
       // compute psnr
       const float range = 1.0f;
