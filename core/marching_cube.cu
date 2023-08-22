@@ -454,7 +454,7 @@ double doMarchingCubeTemplate__Network(const NeuralVolume& network, vec3i dims, 
   throw std::runtime_error("Unsupported MLP WIDTH for in-shader rendering");
 }
 
-void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, bool cuda)
+double vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, bool cuda)
 {
   CUDABufferTyped<vec3f> vertices;
 
@@ -500,31 +500,31 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
   *size = vertices.size();
   if (vertices.size() == 0) {
     std::cerr << "Warning: no vertices generated" << std::endl;
-    return;
-  }
-  // else {
-  //   std::cout << "Generated " << vertices.size() << " vertices" << std::endl;
-  // }
-
-  if (!cuda) {
-    *ptr = (vec3f*)(new float[(*size) * 3]);
-    vertices.download(*ptr, *size);
   }
   else {
-    *ptr = vertices.release();
+
+    if (!cuda) {
+      *ptr = (vec3f*)(new float[(*size) * 3]);
+      vertices.download(*ptr, *size);
+    }
+    else {
+      *ptr = vertices.release();
+    }
   }
+
+  return et;
 }
 
 void vnrMarchingCube(vnrVolume volume, vnrIsosurface isosurface, bool output_to_cuda_memory)
 {
-  vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
+  isosurface.et = vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
 }
 
 void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface> isosurfaces, bool output_to_cuda_memory)
 {
   // TODO: more efficient implementation?
   for (auto& isosurface : isosurfaces) {
-    vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
+    isosurface.et = vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
   }
 }
 

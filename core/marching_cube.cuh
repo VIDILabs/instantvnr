@@ -3,6 +3,6 @@
 
 #include <api.h>
 
-void vnrMarchingCube(vnrVolume volume, float isovalue, vnr::vec3f** ptr, size_t* size, bool cuda);
+double vnrMarchingCube(vnrVolume volume, float isovalue, vnr::vec3f** ptr, size_t* size, bool cuda);
 
 #endif

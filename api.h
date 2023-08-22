@@ -157,6 +157,7 @@ struct vnrIsosurface {
   float isovalue;   // input
   vnr::vec3f** ptr; // output
   size_t* size;     // output
+  double et = 0.0;   // output
 };
 void vnrMarchingCube(vnrVolume volume, vnrIsosurface isosurface, bool output_to_cuda_memory);
 void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface> isosurfaces, bool output_to_cuda_memory);
