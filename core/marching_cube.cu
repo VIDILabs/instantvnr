@@ -180,8 +180,8 @@ __global__ void kComputeActiveVoxels(
 
   // printf("values (%f,%f,%f,%f,%f,%f,%f,%f)\n",values[0],values[1],values[2],values[3],values[4],values[5],values[6],values[7]);
 
-  if (!invalid) 
-  {
+  if (invalid) return;
+
     // Compute the case this falls into to see if this voxel has vertices
     uint8_t case_idx = 0u;
     #pragma unroll
@@ -193,7 +193,7 @@ __global__ void kComputeActiveVoxels(
     // Compute the number of vertices
     uint8_t n_verts = 0u;
     #pragma unroll
-    for (int8_t i = int8_t(0); MC_CASE_TABLE[case_idx * MC_CASE_ELEMENTS + i] != int8_t(-1); i++) {
+    for (int8_t i = int8_t(0); MC_CASE_TABLE[case_idx][i] != int8_t(-1); i++) {
       n_verts++;
     }
     assert(n_verts < MC_CASE_ELEMENTS);
@@ -204,7 +204,6 @@ __global__ void kComputeActiveVoxels(
     voxel.n_verts = n_verts;
     flags[index] = (n_verts > 0) ? uint8_t(1) : uint8_t(0);
     voxels[index] = voxel;
-  }
 }
 
 template<typename VolumeInfo>
@@ -235,23 +234,22 @@ __global__ void kComputeVertices(
 #endif
 
   // Compute vertex positions
-  if (!invalid) 
-  {
+  if (invalid) return;
+
     const uint32_t case_idx = voxel.case_idx;
     const int64_t vertex_offset = vertex_offsets[index];
 
     // Now we can finally compute and output the vertices
-    for (int32_t i = 0u; MC_CASE_TABLE[case_idx * MC_CASE_ELEMENTS + i] != -1; i++) {
-      auto edge = MC_CASE_TABLE[case_idx * MC_CASE_ELEMENTS + i];
-      auto v0 = EDGE_VERTICES[2 * edge + 0];
-      auto v1 = EDGE_VERTICES[2 * edge + 1];
+    for (int32_t i = 0u; MC_CASE_TABLE[case_idx][i] != -1; i++) {
+      auto edge = MC_CASE_TABLE[case_idx][i];
+      auto v0 = EDGE_VERTICES[edge][0];
+      auto v1 = EDGE_VERTICES[edge][1];
       // Compute the interpolated vertex for this edge within the unit cell
       auto v = volume.lerp_verts(volume.vertex_offset(v0), volume.vertex_offset(v1), values[v0], values[v1]);
       // Offset the vertex into the global volume grid
       v = v + vec3f(coord) + 0.5f;
       vertex_positions[vertex_offset + i] = v;
     }
-  }
 }
 
 template<typename T>
@@ -409,9 +407,9 @@ double doMarchingCubeTemplate(const VolumeInfo& volume_info, CUDABufferTyped<vec
    * 5. Compute and output vertices */
 
   CUDABufferTyped<VoxelInfo> active_voxels;
-  CUDABufferTyped<int64_t> vertex_offsets;
   const int64_t n_active_voxels = doComputeActiveVoxels(volume_info, active_voxels);
   if (n_active_voxels > 0) {
+    CUDABufferTyped<int64_t> vertex_offsets;
     vertex_offsets.alloc(n_active_voxels);
     const int64_t n_vertices = doComputeVertexOffsets(volume_info, n_active_voxels, active_voxels, vertex_offsets);
     vertices.alloc(n_vertices);

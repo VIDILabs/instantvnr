@@ -181,6 +181,54 @@ CudaSampler::sample(void* d_input, void* d_output, size_t batch_size, const vec3
   random_dbuffer_uniform((float*)d_input, batch_size * 3, stream);
 #endif
 
+  const char* env_sample_boundary = getenv("DIVA_DVNR_SAMPLE_BOUNDARY");
+  if (env_sample_boundary) {
+    const float weight = std::max(std::min(atof(env_sample_boundary), 1.f), 0.f);
+
+    // box-muller transform
+    const auto N = util::next_multiple<size_t>((size_t)(batch_size*weight), 128UL);
+    vec3f* d_coords = (vec3f*)d_input;
+
+    auto boxmuller = [] __device__ (float u1, float u2) {
+      float r = sqrtf(-2.0f * logf(u1));
+      float theta = 2.0f * M_PI * u2;
+      return vec2f(r * cosf(theta), r * sinf(theta));
+    };
+
+    auto transform = [] __device__ (vec2f in) { 
+      in = in * 0.005f + 0.5f;
+      return vec2f(
+        __saturatef(in.x < 0.f ? (in.x + 1.f) : in.x), 
+        __saturatef(in.y < 0.f ? (in.y + 1.f) : in.y)
+      );
+    };
+
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+0*N, boxmuller, transform] __device__ (size_t i) { 
+      vec2f u = transform(boxmuller(d_coords[i].x, d_coords[i].y));
+      d_coords[i].x = u.x;
+      d_coords[i].y = u.y;
+    });
+
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+1*N, boxmuller, transform] __device__ (size_t i) { 
+      vec2f u = transform(boxmuller(d_coords[i].x, d_coords[i].y));
+      d_coords[i].y = u.x;
+      d_coords[i].z = u.y;
+    });
+
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+2*N, boxmuller, transform] __device__ (size_t i) { 
+      vec2f u = transform(boxmuller(d_coords[i].x, d_coords[i].y));
+      d_coords[i].x = u.x;
+      d_coords[i].z = u.y;
+    });
+
+    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+0*N] __device__ (size_t i) { d_coords[i].x = 0.0; });
+    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+1*N] __device__ (size_t i) { d_coords[i].x = 1.0; });
+    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+2*N] __device__ (size_t i) { d_coords[i].y = 0.0; });
+    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+3*N] __device__ (size_t i) { d_coords[i].y = 1.0; });
+    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+4*N] __device__ (size_t i) { d_coords[i].z = 0.0; });
+    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+5*N] __device__ (size_t i) { d_coords[i].z = 1.0; });
+  }
+
   util::parallel_for_gpu(0, stream, batch_size, [lower=lower, scale=upper-lower, volume=m_texture, coords=(vec3f*)d_input, values=(float*)d_output] __device__ (size_t i) {
     const auto p = lower + coords[i] * scale;
     coords[i] = p;
