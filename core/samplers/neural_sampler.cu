@@ -7,6 +7,8 @@ using default_rng_t = TCNN_NAMESPACE :: default_rng_t;
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 
+#include <curand.h>
+
 // #define TEST_SIREN 
 
 #ifdef ENABLE_LOGGING
@@ -15,6 +17,10 @@ using default_rng_t = TCNN_NAMESPACE :: default_rng_t;
 static std::ostream null_output_stream(0);
 #define log() null_output_stream
 #endif
+
+#define CURAND_CALL(x) do { \
+  if ((x)!=CURAND_STATUS_SUCCESS) { printf("Error at %s:%d\n",__FILE__,__LINE__); } \
+} while(0)
 
 // ------------------------------------------------------------------
 //
@@ -42,6 +48,18 @@ void random_dbuffer_uint64(uint64_t* d_buffer, size_t batch, uint64_t min, uint6
 {
   generate_random_uniform<uint64_t>(stream, rng, batch, d_buffer, min, max); // [min, max)
 }
+
+curandGenerator_t curand_create()
+{
+  curandGenerator_t gen;
+  /* Create pseudo-random number generator */
+  CURAND_CALL(curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT));
+  /* Set seed */
+  CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, 1234ULL));
+  return gen;
+}
+
+static curandGenerator_t generator = curand_create();
 
 // ------------------------------------------------------------------
 //
@@ -183,50 +201,28 @@ CudaSampler::sample(void* d_input, void* d_output, size_t batch_size, const vec3
 
   const char* env_sample_boundary = getenv("DIVA_DVNR_SAMPLE_BOUNDARY");
   if (env_sample_boundary) {
-    const float weight = std::max(std::min(atof(env_sample_boundary), 1.f), 0.f);
+    const float weight = std::max(std::min(atof(env_sample_boundary), 1.), 0.);
 
-    // box-muller transform
-    const auto N = util::next_multiple<size_t>((size_t)(batch_size*weight), 128UL);
+    const auto N = util::next_multiple<size_t>(size_t(batch_size*weight)/3, 128UL);
     vec3f* d_coords = (vec3f*)d_input;
 
-    auto boxmuller = [] __device__ (float u1, float u2) {
-      float r = sqrtf(-2.0f * logf(u1));
-      float theta = 2.0f * M_PI * u2;
-      return vec2f(r * cosf(theta), r * sinf(theta));
-    };
+    CUDABufferTyped<float> randns;
+    randns.alloc(3*N, stream);
+    CURAND_CALL(curandGenerateNormal(generator, randns.d_pointer(), 3*N, 0.f, 0.1f));
 
-    auto transform = [] __device__ (vec2f in) { 
-      in = in * 0.005f + 0.5f;
-      return vec2f(
-        __saturatef(in.x < 0.f ? (in.x + 1.f) : in.x), 
-        __saturatef(in.y < 0.f ? (in.y + 1.f) : in.y)
-      );
-    };
+    auto transform = [] __device__ (float v) { return __saturatef(v < 0.f ? (v + 1.f) : v); };
 
-    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+0*N, boxmuller, transform] __device__ (size_t i) { 
-      vec2f u = transform(boxmuller(d_coords[i].x, d_coords[i].y));
-      d_coords[i].x = u.x;
-      d_coords[i].y = u.y;
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+0*N, d_randn=randns.d_pointer()+0*N, transform] __device__ (size_t i) { 
+      d_coords[i].x = transform(d_randn[i]);
     });
 
-    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+1*N, boxmuller, transform] __device__ (size_t i) { 
-      vec2f u = transform(boxmuller(d_coords[i].x, d_coords[i].y));
-      d_coords[i].y = u.x;
-      d_coords[i].z = u.y;
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+1*N, d_randn=randns.d_pointer()+1*N, transform] __device__ (size_t i) { 
+      d_coords[i].y = transform(d_randn[i]);
     });
 
-    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+2*N, boxmuller, transform] __device__ (size_t i) { 
-      vec2f u = transform(boxmuller(d_coords[i].x, d_coords[i].y));
-      d_coords[i].x = u.x;
-      d_coords[i].z = u.y;
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+2*N, d_randn=randns.d_pointer()+2*N, transform] __device__ (size_t i) { 
+      d_coords[i].z = transform(d_randn[i]);
     });
-
-    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+0*N] __device__ (size_t i) { d_coords[i].x = 0.0; });
-    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+1*N] __device__ (size_t i) { d_coords[i].x = 1.0; });
-    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+2*N] __device__ (size_t i) { d_coords[i].y = 0.0; });
-    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+3*N] __device__ (size_t i) { d_coords[i].y = 1.0; });
-    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+4*N] __device__ (size_t i) { d_coords[i].z = 0.0; });
-    // util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+5*N] __device__ (size_t i) { d_coords[i].z = 1.0; });
   }
 
   util::parallel_for_gpu(0, stream, batch_size, [lower=lower, scale=upper-lower, volume=m_texture, coords=(vec3f*)d_input, values=(float*)d_output] __device__ (size_t i) {

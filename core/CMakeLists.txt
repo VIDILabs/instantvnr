@@ -166,7 +166,7 @@ target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_
 target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcudafe="--diag_suppress=177">)   # -> variable declared but not referenced
 target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcudafe="--diag_suppress=20044">) # -> extern variable '...' treated as static
 
-target_link_libraries(${target} PRIVATE TBB::tbb)
+target_link_libraries(${target} PRIVATE TBB::tbb curand)
 
 target_link_libraries(${target} PUBLIC # intentionally keep these library public
   gdt util tfnmodule tiny-cuda-nn

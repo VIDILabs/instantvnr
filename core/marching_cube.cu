@@ -121,7 +121,7 @@ public:
 
   __device__ void compute_voxel_values(vec3i coord, float values[8]) const {
     for (int32_t i = 0; i < 8; i++) {
-      vec3f p = vec3f(coord + vertex_offset(i)) / vec3f(dims);
+      vec3f p = (vec3f(coord + vertex_offset(i)) + 0.5f) / vec3f(dims);
       values[i] = (float)Impl::sample(p);
     }
   }
