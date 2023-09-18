@@ -45,6 +45,22 @@
 namespace {
 
 template<typename T>
+struct maximum_op {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? rhs : lhs; }
+}; // end maximum
+
+template<typename T>
+struct minimum_op {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? lhs : rhs; }
+}; // end minimum
+
+template<typename T>
 struct plus {
   typedef T first_argument_type;
   typedef T second_argument_type;
@@ -63,8 +79,8 @@ template<typename T>
 void parallel_minmax_gpu(const T* __restrict__ data, size_t count, T& init_min, T& init_max, cudaStream_t stream = nullptr) {
   const auto begin = thrust::device_ptr<const T>(data);
   const auto end = begin + count;
-  init_min = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_min, thrust::minimum<T>());
-  init_max = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_max, thrust::maximum<T>());
+  init_min = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_min, minimum_op<T>());
+  init_max = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_max, maximum_op<T>());
 }
 
 }

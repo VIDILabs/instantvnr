@@ -65,6 +65,26 @@ static curandGenerator_t generator = curand_create();
 //
 // ------------------------------------------------------------------
 
+namespace {
+
+template<typename T>
+struct maximum_op {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? rhs : lhs; }
+}; // end maximum
+
+template<typename T>
+struct minimum_op {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? lhs : rhs; }
+}; // end minimum
+
+}
+
 // function defined in network.cu (line 51-68)
 __global__ void generate_coords(uint32_t n_elements, vec3i lower, vec3i size, vec3f rdims, float* __restrict__ coords);
 
@@ -80,15 +100,23 @@ void normalize_buffer_device(const void* data, vec3i dims, range1f range, CUDABu
   double scale;
   if (range.is_empty()) {
     const auto d_ptr = thrust::device_ptr<T>((T*)d_buffer.d_pointer());
-    T value_max = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::lowest(), thrust::maximum<T>());
-    T value_min = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::max(), thrust::minimum<T>());
+    T value_max = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::lowest(), maximum_op<T>());
+    T value_min = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::max(), minimum_op<T>());
+    if (value_max == value_min) {
+      std::cout << "[vnr] warning: value_max == value_min == " << value_min << " " << value_max << std::endl;
+      value_max += 1e-6;
+      value_min -= 1e-6;
+    }    
     vmin = (double)value_min;
     scale = 1.0 / ((double)value_max - (double)value_min);
+    range.lower = (float)value_min;
+    range.upper = (float)value_max;
   }
   else {
     vmin = range.lower;
     scale = 1.0 / (range.upper - range.lower);
   }
+  // std::cout << "[vnr] range: " << range.lower << " " << range.upper << std::endl;
 
   // for now, we convert everything to floats
   d_floats.alloc(count*sizeof(float), NULL);
