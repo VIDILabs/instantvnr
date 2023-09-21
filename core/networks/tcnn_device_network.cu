@@ -29,15 +29,12 @@ namespace tcnn_impl {
 //
 // ------------------------------------------------------------------
 
-template<typename T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH, HashType HASH_TYPE>
-__device__ T DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::sample(const float3 coordinate) const {
-  typedef T OUT_T;
-
-  const uint32_t in_width = enc.num_grid_features;
+template<typename OUT_T, uint32_t N_POS_DIMS, uint32_t N_FEATURES_PER_LEVEL, uint32_t WIDTH, HashType HASH_TYPE>
+__device__ OUT_T DeviceNeuralVolume<OUT_T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::sample(const float3 coordinate) const {
 
   constexpr uint32_t N_BLOCKS = WIDTH / 16;
-  constexpr uint32_t shmem_size_coord  = sizeof(float) * (16 * N_ITERS) * N_POS_DIMS;
-  constexpr uint32_t shmem_size_output = sizeof(OUT_T) * (16 * N_ITERS) * 16;
+  constexpr uint32_t shmem_size_pos = sizeof(float) * (16 * N_ITERS) * N_POS_DIMS;
+  constexpr uint32_t shmem_size_out = sizeof(OUT_T) * (16 * N_ITERS) * 16;
 
   static_assert(N_POS_DIMS == 3, "N_POS_DIMS must be 3 for volumes");
   static_assert(2 * N_BLOCKS == N_ITERS, "this has to be true: 2 * N_BLOCKS == N_ITERS");
@@ -46,9 +43,9 @@ __device__ T DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH
   // In some cases, it also contains the weight matrix for the first and last layer.
   extern __shared__ __half shmem[];
 
-  float* pos_shmem = (float*)shmem;
-  OUT_T* out_shmem = shmem + shmem_size_coord / sizeof(__half);
-  __half* act_shmem = shmem + (shmem_size_coord + shmem_size_output) / sizeof(__half);
+  float*  pos_shmem = (float*)shmem;
+  OUT_T*  out_shmem = shmem +  shmem_size_pos / sizeof(OUT_T);
+  __half* act_shmem = shmem + (shmem_size_pos + shmem_size_out) / sizeof(__half);
 
   // Each block computes exactly one 16-element chunk of the batch.
 	const uint32_t elem_idx = 16 * blockIdx.x * N_ITERS;
@@ -57,6 +54,7 @@ __device__ T DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH
   const auto ACTIVATION = mlp.activation;
   const auto output_activation = mlp.output_activation;
   const auto n_hidden_matmuls  = mlp.n_hidden_matmuls; 
+  const auto in_width = mlp.n_input_width;
 
   OUT_T out[16] = {};
 

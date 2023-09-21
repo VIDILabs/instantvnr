@@ -247,8 +247,8 @@ void DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::
   const uint32_t n_blocks = div_round_up(batch_size, n_elems_per_block);
 
   /* calculate shared memory size */
-  constexpr uint32_t shmem_size_coord  = sizeof(float ) * (16 * N_ITERS) * N_POS_DIMS;
-  constexpr uint32_t shmem_size_output = sizeof(__half) * (16 * N_ITERS) * 16;
+  constexpr uint32_t shmem_size_pos = sizeof(float) * (16 * N_ITERS) * N_POS_DIMS;
+  constexpr uint32_t shmem_size_out = sizeof(T    ) * (16 * N_ITERS) * 16;
 
   // 16*WIDTH rows of weights (for the last layer; others are in registers only) + 16*WIDTH*BLOCK_DIM_Z*N_ITERS rows of intermediate activations
   size_t shmem_size = sizeof(__half) * (16 + 16 * N_ITERS) * (WIDTH + SKEW); 
@@ -256,7 +256,7 @@ void DeviceNeuralVolume<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, WIDTH, HASH_TYPE>::
   if (in_width != WIDTH) {
     shmem_size = std::max(shmem_size, sizeof(__half) * (WIDTH + 16) * (in_width + INPUT_SKEW));
   }
-  shmem_size += shmem_size_coord + shmem_size_output;
+  shmem_size += shmem_size_pos + shmem_size_out;
 
   /* launch kernel */
   const dim3 blocks = { n_blocks, 1u, 1u };
