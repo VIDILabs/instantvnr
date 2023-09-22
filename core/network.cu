@@ -996,6 +996,18 @@ NeuralVolume::get_num_blobs() const
   return (dims.z + num_slices_per_blob - 1) / num_slices_per_blob;
 }
 
+uint32_t  
+NeuralVolume::get_mlp_size() const
+{
+  return pimpl->m_neural->get_mlp_size();
+}
+
+uint32_t  
+NeuralVolume::get_enc_size() const
+{
+  return pimpl->m_neural->get_enc_size();
+}
+
 range1f
 NeuralVolume::get_data_value_range() const
 {

@@ -344,6 +344,18 @@ int vnrNeuralVolumeGetNumberOfBlobs(vnrVolume self)
   return nv->neural.get_num_blobs();
 }
 
+int vnrNeuralVolumeGetNBytesMultilayerPerceptron(vnrVolume self)
+{
+  auto nv = castNeuralVolume(self);
+  return nv->neural.get_mlp_size();
+}
+
+int vnrNeuralVolumeGetNBytesEncoding(vnrVolume self)
+{
+  auto nv = castNeuralVolume(self);
+  return nv->neural.get_enc_size();
+}
+
 // general
 
 void vnrVolumeSetClippingBox(vnrVolume self, vnr::vec3f lower, vnr::vec3f upper)

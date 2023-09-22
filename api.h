@@ -135,6 +135,9 @@ double vnrNeuralVolumeGetTrainingLoss(vnrVolume);
 int    vnrNeuralVolumeGetTrainingStep(vnrVolume);
 int    vnrNeuralVolumeGetNumberOfBlobs(vnrVolume);
 
+int vnrNeuralVolumeGetNBytesMultilayerPerceptron(vnrVolume);
+int vnrNeuralVolumeGetNBytesEncoding(vnrVolume);
+
 void vnrNeuralVolumeTrain(vnrVolume, int steps, bool fast_mode, bool verbose = false);
 void vnrNeuralVolumeDecodeProgressive(vnrVolume);
 

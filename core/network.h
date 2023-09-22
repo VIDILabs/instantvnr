@@ -69,6 +69,9 @@ public:
 
   uint32_t  get_num_blobs() const;
 
+  uint32_t get_mlp_size() const;
+  uint32_t get_enc_size() const;
+
   float get_mse(vec3i resolution, bool quiet = false) const;
   float get_psnr(vec3i resolution, bool quiet = false) const;
   float get_mssim(vec3i resolution, bool quiet = false) const;

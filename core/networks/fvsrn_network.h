@@ -27,6 +27,10 @@ public:
 
   size_t get_model_size() const { return 0; }
 
+  size_t get_mlp_size() const { return 0; }
+
+  size_t get_enc_size() const { return 0; }
+
   size_t training_step() const { return 0; }
 
   double training_loss() const { return -1.0; }
