@@ -19,7 +19,7 @@ static std::ostream null_output_stream(0);
 #endif
 
 #define CURAND_CALL(x) do { \
-  if ((x)!=CURAND_STATUS_SUCCESS) { printf("Error at %s:%d\n",__FILE__,__LINE__); } \
+  if ((x)!=CURAND_STATUS_SUCCESS) { printf("Error at %s:%d (%d)\n",__FILE__,__LINE__,x); } \
 } while(0)
 
 // ------------------------------------------------------------------
