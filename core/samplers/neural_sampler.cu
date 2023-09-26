@@ -236,7 +236,7 @@ CudaSampler::sample(void* d_input, void* d_output, size_t batch_size, const vec3
 
     CUDABufferTyped<float> randns;
     randns.alloc(3*N, stream);
-    CURAND_CALL(curandGenerateNormal(generator, randns.d_pointer(), 3*N, 0.f, 0.1f));
+    CURAND_CALL(curandGenerateNormal(generator, randns.d_pointer(), 3*N, 0.f, /*std=*/0.005f));
 
     auto transform = [] __device__ (float v) { return __saturatef(v < 0.f ? (v + 1.f) : v); };
 
