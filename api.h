@@ -202,6 +202,7 @@ vnr::vec4f* vnrRendererMapFrame(vnrRenderer);
 //
 // ------------------------------------------------------------------
 
+void vnrResetMaxMemory();
 void vnrMemoryQuery(size_t* used_by_self, size_t* used_by_tcnn, size_t* used_peak, size_t* used_total);
 void vnrMemoryQueryPrint(const char* prompt);
 void vnrFreeTemporaryGPUMemory();

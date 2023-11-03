@@ -568,6 +568,11 @@ void vnrRender(vnrRenderer self)
 //
 // ------------------------------------------------------------------
 
+void vnrResetMaxMemory()
+{
+  util::max_nbytes_allocated() = 0;
+}
+
 void vnrMemoryQuery(size_t* used_by_self, size_t* used_by_tcnn, size_t* used_peak, size_t* used_total)
 {
   if (used_by_self) *used_by_self = util::tot_nbytes_allocated();
