@@ -308,7 +308,7 @@ MainRenderer::initCuda()
   char pciBusId[32];
   cudaDeviceGetPCIBusId(pciBusId, 32, device_id);
 
-  std::cout << "[vnr] running on device: " << cuda_device_props.name << " (" << std::string(pciBusId) << ")" << std::endl;
+  // std::cout << "[vnr] running on device: " << cuda_device_props.name << " (" << std::string(pciBusId) << ")" << std::endl;
 
   CUresult result = cuCtxGetCurrent(&cuda_context);
   if (result != CUDA_SUCCESS)
