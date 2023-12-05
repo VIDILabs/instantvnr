@@ -493,6 +493,7 @@ vnrRenderer vnrCreateRenderer(vnrVolume v)
 
   renderer.set_scene_clipbox(self->volume->clipbox);
   renderer.set_rendering_mode(5);
+  // 1179636.polaris-pbs-01.hsn.cm.polaris.alcf.anl.gov (without init, OKAY (1.893421 - 1.891434)GB = 1.987 MB), problem in init)
   renderer.init();
   return self;
 }

@@ -245,6 +245,15 @@ MainRenderer::set_scene_clipbox(const box3f& clip)
   volume.set_clipping(clip.lower, clip.upper);
 }
 
+MainRenderer::~MainRenderer()
+{
+  framebuffer_accumulation.free(0);
+#if defined(ENABLE_OPTIX)
+  if (optix_context) OPTIX_CHECK_NOEXCEPT(optixDeviceContextDestroy(optix_context));
+  if (optix_device_handles) OPTIX_CHECK_NOEXCEPT(optixUninitWithHandle(optix_device_handles));
+#endif
+}
+
 /*! constructor - performs all setup, including initializing
   optix, creates module, pipeline, programs, SBT, etc. */
 void
@@ -258,6 +267,8 @@ MainRenderer::init()
 #endif
 
   framebuffer.create();
+
+  // 1179639.polaris-pbs-01.hsn.cm.polaris.alcf.anl.gov (LEAK Here: (2.118111 - 1.872341)GB = 245.77 MB)
 
 #if defined(ENABLE_OPTIX)
   // generate SBT records for 
@@ -303,12 +314,10 @@ MainRenderer::initCuda()
   }
   CUDA_CHECK(cudaSetDevice(device_id));
 
-  cudaGetDeviceProperties(&cuda_device_props, device_id);
-
-  char pciBusId[32];
-  cudaDeviceGetPCIBusId(pciBusId, 32, device_id);
-
-  // std::cout << "[vnr] running on device: " << cuda_device_props.name << " (" << std::string(pciBusId) << ")" << std::endl;
+  // char cuda_pci_bus[32];
+  // cudaDeviceGetPCIBusId(cuda_pci_bus, 32, device_id);
+  // cudaGetDeviceProperties(&cuda_device_props, device_id);
+  // std::cout << "[vnr] running on device: " << cuda_device_props.name << " (" << std::string(cuda_pci_bus) << ")" << std::endl;
 
   CUresult result = cuCtxGetCurrent(&cuda_context);
   if (result != CUDA_SUCCESS)
@@ -327,7 +336,7 @@ MainRenderer::initOptix()
   // -------------------------------------------------------
   // initialize optix
   // -------------------------------------------------------
-  OPTIX_CHECK(optixInit());
+  OPTIX_CHECK(optixInitWithHandle(&optix_device_handles));
 
   OPTIX_CHECK(optixDeviceContextCreate(cuda_context, 0, &optix_context));
   OPTIX_CHECK(optixDeviceContextSetLogCallback(optix_context, context_log_cb, nullptr, 4));

@@ -58,10 +58,7 @@ struct MainRenderer
   // publicly accessible interface
   // ------------------------------------------------------------------
 public:
-  ~MainRenderer()
-  {
-    framebuffer_accumulation.free(0);
-  }
+  ~MainRenderer();
 
   /*! constructor - performs all setup, including initializing
     optix, creates module, pipeline, programs, SBT, etc. */
@@ -189,6 +186,7 @@ protected:
   CUcontext cuda_context{};
   cudaStream_t optix_default_stream{};
 #if defined(ENABLE_OPTIX)
+  void* optix_device_handles{};
   OptixDeviceContext optix_context{}; /* the optix context that our pipeline will run in. */
 #endif
   /*! @} */

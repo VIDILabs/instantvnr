@@ -17,6 +17,7 @@ private:
     ~BufferObject()
     {
       device_buffer.free(stream);
+      if (stream) CUDA_CHECK_NOEXCEPT(cudaStreamDestroy(stream));
     }
 
     void resize(size_t& count)
