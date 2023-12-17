@@ -27,9 +27,6 @@
 #include "object.h"
 #include "framebuffer.h"
 
-#if defined(ENABLE_OPTIX)
-#include "core/renderer/method_optix.h"
-#endif
 #include "core/renderer/method_raymarching.h"
 #include "core/renderer/method_pathtracing.h"
 
@@ -103,9 +100,6 @@ public:
 
     // resize auxiliary frame buffers
     framebuffer_accumulation.resize(params.frame.size.long_product() * sizeof(vec4f), framebuffer_stream);
-#if defined(ENABLE_OPTIX)
-    denoiser.resize(optix_context, framebuffer_stream, new_size);
-#endif
   }
 
   /*! set camera to render with */
@@ -149,9 +143,6 @@ public:
 
   void set_denoiser(bool enable)
   {
-#if defined(ENABLE_OPTIX)
-    denoiser_enabled = enable;
-#endif
   }
 
   void set_output_as_cuda_framebuffer() { framebuffer_skip_download = true; }
@@ -169,13 +160,6 @@ protected:
   /*! helper function that initializes optix and checks for errors */
   void initCuda();
 
-#if defined(ENABLE_OPTIX)
-  /*! creates and configures a optix device context (in this simple example, only for the primary GPU device) */
-  void initOptix();
-  /*! build the bottom level acceleration structures */
-  void createBLAS();
-#endif
-
   /*! render volume */
   void render_normal();
   void render_neural();
@@ -185,10 +169,6 @@ protected:
   cudaDeviceProp cuda_device_props{};
   CUcontext cuda_context{};
   cudaStream_t optix_default_stream{};
-#if defined(ENABLE_OPTIX)
-  void* optix_device_handles{};
-  OptixDeviceContext optix_context{}; /* the optix context that our pipeline will run in. */
-#endif
   /*! @} */
 
   /*! @{ our launch parameters, on the host, and the buffer to store them on the device */
@@ -197,9 +177,6 @@ protected:
 
   NeuralVolume* neural_volume_representation{ nullptr };
 
-#if defined(ENABLE_OPTIX)
-  MethodOptiX program_optix;
-#endif
   MethodRayMarching program_raymarching;
   MethodPathTracing program_pathtracing;
 
@@ -211,11 +188,6 @@ protected:
   const cudaTextureObject_t* p_volume_data_texture{nullptr};
   StructuredRegularVolume volume;
 
-#if defined(ENABLE_OPTIX)
-  OptixProgram::InstanceHandler volume_instance;                 /*! the ISA handlers */
-  std::vector<OptixProgram::InstanceHandler> geometry_instances; /*! the ISA handlers */
-#endif
-
   /*! the rendered image */
   FrameBuffer framebuffer;
   cudaStream_t framebuffer_stream{};
@@ -225,11 +197,6 @@ protected:
 
   /*! the camera we are to render with. */
   Camera camera_latest;
-
-#if defined(ENABLE_OPTIX)
-  bool denoiser_enabled = false;
-  OptixProgramDenoiser denoiser;
-#endif
 };
 
 } // namespace vnr

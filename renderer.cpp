@@ -23,11 +23,6 @@
 
 #include "renderer.h"
 
-#if defined(ENABLE_OPTIX)
-// this include may only appear in a single source file:
-#include <optix_function_table_definition.h>
-#endif
-
 #include <iostream>
 
 #ifdef ENABLE_LOGGING
@@ -65,15 +60,7 @@ MainRenderer::render()
   /* framebuffer ... */
   framebuffer_stream = framebuffer.current_stream();
   params.accumulation = (vec4f*)framebuffer_accumulation.d_pointer();
-#if defined(ENABLE_OPTIX)
-  if (denoiser_enabled) {
-    params.frame.rgba = denoiser.d_ptr();
-  }
-  else
-#endif
-  {
-    params.frame.rgba = framebuffer.device_pointer();
-  }
+  params.frame.rgba = framebuffer.device_pointer();
 
   /* volumes ... */
   // volume texture might get updated during rendering, we will keep an eye on it.
@@ -112,13 +99,6 @@ MainRenderer::render()
   else {
     render_neural();
   }
-
-  // denoise
-#if defined(ENABLE_OPTIX)
-  if (denoiser_enabled) {
-    denoiser.process(optix_context, framebuffer_stream, !framebuffer_reset, params.frame_index, params.frame.size, framebuffer.device_pointer());
-  }
-#endif
 
   // // finalize frame
   // try {
@@ -166,13 +146,6 @@ MainRenderer::render_normal()
   case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_DECODING:         program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer());                 break;
   case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer(), nullptr, true);  break;
   case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer(), nullptr, false); break;
-  // reference renderer
-#if defined(ENABLE_OPTIX)
-  case VNR_OPTIX_NO_SHADING:             program_optix.render(framebuffer_stream, params, MethodOptiX::NO_SHADING);             break;
-  case VNR_OPTIX_GRADIENT_SHADING:       program_optix.render(framebuffer_stream, params, MethodOptiX::GRADIENT_SHADING);       break;
-  case VNR_OPTIX_FULL_SHADOW:            program_optix.render(framebuffer_stream, params, MethodOptiX::FULL_SHADOW);            break;
-  case VNR_OPTIX_SINGLE_SHADE_HEURISTIC: program_optix.render(framebuffer_stream, params, MethodOptiX::SINGLE_SHADE_HEURISTIC); break;
-#endif
   default: break;
   }
 }
@@ -201,13 +174,6 @@ MainRenderer::render_neural()
   case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_DECODING:         program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer());             break;
   case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_SAMPLE_STREAMING: program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer(), nvr, true);  break;
   case VNR_RAYMARCHING_SINGLE_SHADE_HEURISTIC_IN_SHADER:        program_raymarching.render(framebuffer_stream, params, MethodRayMarching::SINGLE_SHADE_HEURISTIC, volume.d_pointer(), nvr, false); break;
-  // reference renderer
-#if defined(ENABLE_OPTIX)
-  case VNR_OPTIX_NO_SHADING:             program_optix.render(framebuffer_stream, params, MethodOptiX::NO_SHADING);             break;
-  case VNR_OPTIX_GRADIENT_SHADING:       program_optix.render(framebuffer_stream, params, MethodOptiX::GRADIENT_SHADING);       break;
-  case VNR_OPTIX_FULL_SHADOW:            program_optix.render(framebuffer_stream, params, MethodOptiX::FULL_SHADOW);            break;
-  case VNR_OPTIX_SINGLE_SHADE_HEURISTIC: program_optix.render(framebuffer_stream, params, MethodOptiX::SINGLE_SHADE_HEURISTIC); break;
-#endif
   default: break;
   }
 }
@@ -248,10 +214,6 @@ MainRenderer::set_scene_clipbox(const box3f& clip)
 MainRenderer::~MainRenderer()
 {
   framebuffer_accumulation.free(0);
-#if defined(ENABLE_OPTIX)
-  if (optix_context) OPTIX_CHECK_NOEXCEPT(optixDeviceContextDestroy(optix_context));
-  if (optix_device_handles) OPTIX_CHECK_NOEXCEPT(optixUninitWithHandle(optix_device_handles));
-#endif
 }
 
 /*! constructor - performs all setup, including initializing
@@ -260,32 +222,7 @@ void
 MainRenderer::init()
 {
   initCuda();
-
-#if defined(ENABLE_OPTIX) 
-  initOptix();
-  createBLAS();
-#endif
-
   framebuffer.create();
-
-  // 1179639.polaris-pbs-01.hsn.cm.polaris.alcf.anl.gov (LEAK Here: (2.118111 - 1.872341)GB = 245.77 MB)
-
-#if defined(ENABLE_OPTIX)
-  // generate SBT records for 
-  std::map<ObjectType, std::vector<void*>> records;
-  {
-    auto it = records.emplace(VOLUME_STRUCTURED_REGULAR, 1);
-    it.first->second[0] = (void*)volume.get_sbt_pointer(optix_default_stream);
-  }
-
-  // define BLAS groups
-  std::vector<std::vector<OptixProgram::InstanceHandler>> blas;
-  blas.push_back(std::vector<OptixProgram::InstanceHandler>{ volume_instance });
-  blas.push_back(geometry_instances);
-  // create optix program
-  program_optix.init(optix_context, records, blas);
-#endif
-
   log() << "[vnr] " << GDT_TERMINAL_GREEN;
   log() << "Instant Neural Representation Renderer is Ready" << std::endl;
   log() << GDT_TERMINAL_DEFAULT;
@@ -323,354 +260,5 @@ MainRenderer::initCuda()
   if (result != CUDA_SUCCESS)
     fprintf(stderr, "Error querying current context: error code %d\n", result);
 }
-
-/*! creates and configures a optix device context (in this simple
-  example, only for the primary GPU device) */
-#if defined(ENABLE_OPTIX)
-void
-MainRenderer::initOptix()
-{
-  // CUDA_CHECK(cudaStreamCreate(&optix_default_stream));
-  optix_default_stream = 0;
-
-  // -------------------------------------------------------
-  // initialize optix
-  // -------------------------------------------------------
-  OPTIX_CHECK(optixInitWithHandle(&optix_device_handles));
-
-  OPTIX_CHECK(optixDeviceContextCreate(cuda_context, 0, &optix_context));
-  OPTIX_CHECK(optixDeviceContextSetLogCallback(optix_context, context_log_cb, nullptr, 4));
-}
-#endif
-
-/*! build the bottom level acceleration structures */
-#if defined(ENABLE_OPTIX)
-void
-MainRenderer::createBLAS()
-{
-  /*! create the volume ISA handler */
-  {
-    // we want to treat one volume as a instance
-    volume_instance.type = VOLUME_STRUCTURED_REGULAR;
-    volume_instance.idx = 0;
-    volume.transform(volume_instance.handler.transform);
-    volume_instance.handler.instanceId = 0;
-    volume_instance.handler.visibilityMask = OptixVisibilityMask(VISIBILITY_MASK_VOLUME);
-    volume_instance.handler.sbtOffset = 0xFFFFFFFF; /* invalid */
-    volume_instance.handler.flags = OPTIX_INSTANCE_FLAG_NONE;
-    volume_instance.handler.traversableHandle = volume.buildas(optix_context, /*stream=*/0);
-  }
-}
-#endif
-
-#if defined(ENABLE_OPTIX)
-
-/*! creates the module that contains all the programs we are going
-    to use. in this simple example, we use a single module from a
-    single .cu file, using a single embedded ptx string */
-void
-OptixProgram::createModule(OptixDeviceContext optix_context)
-{
-  module.compile_opts.maxRegisterCount = 100;
-
-  module.compile_opts.optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_3;
-  // module.compile_opts.optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_2;
-  // module.compile_opts.optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_1;
-  // module.compile_opts.optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
-
-  module.compile_opts.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_DEFAULT;
-  // module.compile_opts.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
-  // module.compile_opts.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO;
-  // module.compile_opts.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
-
-  pipeline.compile_opts = {};
-  pipeline.compile_opts.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY;
-  pipeline.compile_opts.usesMotionBlur = false;
-  pipeline.compile_opts.numPayloadValues = 2;
-  pipeline.compile_opts.numAttributeValues = 8;
-  pipeline.compile_opts.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;
-  pipeline.compile_opts.pipelineLaunchParamsVariableName = "optixLaunchParams";
-
-  pipeline.link_opts.maxTraceDepth = 16;
-
-  char log[2048];
-  size_t sizeof_log = sizeof(log);
-  OPTIX_CHECK(optixModuleCreateFromPTX(optix_context,
-                                       &module.compile_opts,
-                                       &pipeline.compile_opts,
-                                       /* shader program */ ptx_code.c_str(),
-                                       ptx_code.size(),
-                                       /* logs and output */ log,
-                                       &sizeof_log,
-                                       &module.handle));
-  general_log_cb(log, sizeof_log);
-}
-
-/*! assembles the full pipeline of all programs */
-void
-OptixProgram::createPipeline(OptixDeviceContext optix_context)
-{
-  std::vector<OptixProgramGroup> program_groups;
-  for (auto pg : program.raygens)
-    program_groups.push_back(pg);
-  for (auto pg : program.misses)
-    program_groups.push_back(pg);
-  for (auto pg : program.hitgroups)
-    program_groups.push_back(pg);
-
-  char log[2048];
-  size_t sizeof_log = sizeof(log);
-  OPTIX_CHECK(optixPipelineCreate(optix_context,
-                                  &pipeline.compile_opts,
-                                  &pipeline.link_opts,
-                                  program_groups.data(),
-                                  (int)program_groups.size(),
-                                  log,
-                                  &sizeof_log,
-                                  &pipeline.handle));
-  general_log_cb(log, sizeof_log);
-
-  OPTIX_CHECK(
-    optixPipelineSetStackSize(/* [in] The pipeline to configure the stack size for */
-                              pipeline.handle,
-                              /* [in] The direct stack size requirement for direct callables invoked from IS or AH. */
-                              2 * 1024,
-                              /* [in] The direct stack size requirement for direct callables invoked from RG, MS, or CH. */
-                              2 * 1024,
-                              /* [in] The continuation stack requirement. */
-                              2 * 1024,
-                              /* [in] The maximum depth of a traversable graph passed to trace. */
-                              3));
-}
-
-/*! does all setup for the raygen program(s) we are going to use */
-void
-OptixProgram::createRaygenPrograms(OptixDeviceContext optix_context)
-{
-  // we do a single ray gen program in this example:
-  program.raygens.resize(1);
-
-  OptixProgramGroupOptions options = {};
-  OptixProgramGroupDesc desc = {};
-  desc.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-  desc.raygen.module = module.handle;
-  desc.raygen.entryFunctionName = shader_raygen.c_str();
-
-  char log[2048];
-  size_t sizeof_log = sizeof(log);
-  OPTIX_CHECK(optixProgramGroupCreate(optix_context, &desc, 1, &options, log, &sizeof_log, &program.raygens[0]));
-  general_log_cb(log, sizeof_log);
-}
-
-/*! does all setup for the miss program(s) we are going to use */
-void
-OptixProgram::createMissPrograms(OptixDeviceContext optix_context)
-{
-  // we do a single ray gen program in this example:
-  program.misses.resize(shader_misses.size());
-
-  OptixProgramGroupOptions options = {};
-  OptixProgramGroupDesc desc = {};
-  char log[2048];
-  size_t sizeof_log = sizeof(log);
-
-  for (int i = 0; i < shader_misses.size(); ++i) {
-    sizeof_log = sizeof(log);
-    desc.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
-    desc.miss.module = module.handle;
-    desc.miss.entryFunctionName = shader_misses[i].c_str();
-    OPTIX_CHECK(optixProgramGroupCreate(optix_context, &desc, 1, &options, log, &sizeof_log, &program.misses[i]));
-    general_log_cb(log, sizeof_log);
-  }
-}
-
-/*! does all setup for the hitgroup program(s) we are going to use */
-void
-OptixProgram::createHitgroupPrograms(OptixDeviceContext optix_context)
-{
-  OptixProgramGroupDesc desc = {};
-  OptixProgramGroupOptions options = {};
-  memset(&options, 0, sizeof(OptixProgramGroupOptions));
-
-  // for this simple example, we set up a single hit group
-  char log[2048];
-  size_t sizeof_log;
-
-  // cleanup hitgroup
-  program.hitgroups.clear();
-
-  // create hitgroup records
-  for (auto& shaders : shader_objects) {
-
-    for (auto& s : shaders.hitgroup) {
-      memset(&desc, 0, sizeof(OptixProgramGroupDesc));
-      desc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-
-      if (!s.shader_CH.empty()) {
-        desc.hitgroup.moduleCH = module.handle;
-        desc.hitgroup.entryFunctionNameCH = s.shader_CH.c_str();
-      }
-      if (!s.shader_AH.empty()) {
-        desc.hitgroup.moduleAH = module.handle;
-        desc.hitgroup.entryFunctionNameAH = s.shader_AH.c_str();
-      }
-      if (!s.shader_IS.empty()) {
-        desc.hitgroup.moduleIS = module.handle;
-        desc.hitgroup.entryFunctionNameIS = s.shader_IS.c_str();
-      }
-
-      OptixProgramGroup pg;
-      sizeof_log = sizeof(log);
-      OPTIX_CHECK(optixProgramGroupCreate(optix_context, &desc, 1, &options, log, &sizeof_log, &pg));
-      general_log_cb(log, sizeof_log);
-
-      program.hitgroups.push_back(pg);
-    }
-  }
-
-  program.hitgroups.shrink_to_fit();
-}
-
-/*! constructs the shader binding table */
-void
-OptixProgram::createSBT(OptixDeviceContext optix_context, const std::map<ObjectType, std::vector<void*>>& records)
-{
-  // if (records.size() != shader_hitgroups.size()) {
-  //   throw std::runtime_error("expecting " + std::to_string(records.size()) + " hitgroups");
-  // }
-
-  // ------------------------------------------------------------------
-  // build raygen records
-  // ------------------------------------------------------------------
-  std::vector<RaygenRecord> raygen_records;
-  for (auto&& rg : program.raygens) {
-    RaygenRecord rec = {};
-    OPTIX_CHECK(optixSbtRecordPackHeader(rg, &rec));
-    rec.data = nullptr; /* for now ... */
-    raygen_records.push_back(rec);
-  }
-  program.raygen_buffer.alloc_and_upload_async(raygen_records, /*stream=*/0);
-  sbt.raygenRecord = program.raygen_buffer.d_pointer();
-
-  // ------------------------------------------------------------------
-  // build miss records
-  // ------------------------------------------------------------------
-  std::vector<MissRecord> miss_records;
-  for (auto&& ms : program.misses) {
-    MissRecord rec = {};
-    OPTIX_CHECK(optixSbtRecordPackHeader(ms, &rec));
-    rec.data = nullptr; /* for now ... */
-    miss_records.push_back(rec);
-  }
-  program.miss_buffer.alloc_and_upload_async(miss_records, /*stream=*/0);
-  sbt.missRecordBase = program.miss_buffer.d_pointer();
-  sbt.missRecordStrideInBytes = sizeof(MissRecord);
-  sbt.missRecordCount = (int)miss_records.size();
-
-  // ------------------------------------------------------------------
-  // build hitgroup records
-  // ------------------------------------------------------------------
-  std::vector<HitgroupRecord> hitgroup_records;
-
-  int shader_offset = 0;
-  int sbt_offset = 0;
-
-  // for each object type (aka. object shader group)
-  for (const auto& shaders : shader_objects) {
-    const auto& sbtpointers = records.at(shaders.type);
-
-    sbt_offset_table[shaders.type] = std::vector<uint32_t>(sbtpointers.size());
-
-    // for each object
-    for (int o = 0; o < sbtpointers.size(); ++o) {
-
-      // for each ray type
-      for (int id = 0; id < shaders.hitgroup.size(); ++id) {
-        HitgroupRecord rec{};
-        OPTIX_CHECK(optixSbtRecordPackHeader(program.hitgroups[shader_offset + id], &rec));
-        rec.data = sbtpointers[o];
-        hitgroup_records.push_back(rec);
-      }
-
-      sbt_offset_table[shaders.type][o] = sbt_offset;
-      sbt_offset += (int)shaders.hitgroup.size();
-    }
-
-    shader_offset += (int)shaders.hitgroup.size();
-  }
-
-#if 0
-  std::cout << "SBT Offset Table" << std::endl;
-  for (auto& t : sbt_offset_table) {
-    std::cout << "  type " << object_type_string(t.first) << std::endl;
-    int i = 0;
-    for (auto& e : t.second) {
-      std::cout << "    " << i++ << " = " << e << std::endl;
-    }
-  }
-#endif
-
-  program.hitgroup_buffer.alloc_and_upload_async(hitgroup_records, /*stream=*/0);
-  sbt.hitgroupRecordBase = program.hitgroup_buffer.d_pointer();
-  sbt.hitgroupRecordStrideInBytes = sizeof(HitgroupRecord);
-  sbt.hitgroupRecordCount = (int)hitgroup_records.size();
-}
-
-void
-OptixProgram::createTLAS(OptixDeviceContext optix_context,
-                         const std::vector<std::vector<OptixProgram::InstanceHandler>>& blas)
-{
-  ias.reset(new IasData[blas.size()]);
-
-  for (int k = 0; k < blas.size(); ++k) {
-    // ==================================================================
-    // Create Input
-    // ==================================================================
-    for (auto instance : blas[k] /* intentionally making a copy */) {
-      if (sbt_offset_table.count(instance.type) > 0) {
-        instance.handler.sbtOffset = sbt_offset_table[instance.type][instance.idx];
-        ias[k].instances.push_back(instance.handler);
-      }
-      else {
-        continue;
-      }
-    }
-
-    if (ias[k].instances.empty())
-      continue;
-
-    ias[k].instances_buffer.alloc_and_upload_async(ias[k].instances, /*stream=*/0);
-
-    // ==================================================================
-    // Build the BVH
-    // ==================================================================
-    std::vector<OptixBuildInput> inputs(1);
-    {
-      OptixBuildInput& input = inputs[0];
-      input = OptixBuildInput{};
-      input.type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
-      input.instanceArray.instances = ias[k].instances_buffer.d_pointer();
-      input.instanceArray.numInstances = (unsigned int)ias[k].instances.size();
-    }
-
-    ias[k].traversable = buildas_exec(optix_context, /*stream=*/0, inputs, ias[k].as_buffer);
-  }
-}
-
-void
-OptixProgram::init(OptixDeviceContext optix_context,
-                   std::map<ObjectType, std::vector<void*>> records,
-                   std::vector<std::vector<OptixProgram::InstanceHandler>> blas)
-{
-  createModule(optix_context);
-  createRaygenPrograms(optix_context);
-  createMissPrograms(optix_context);
-  createHitgroupPrograms(optix_context);
-  createPipeline(optix_context);
-  createSBT(optix_context, records);
-  createTLAS(optix_context, blas);
-}
-
-#endif
 
 } // namespace ovr

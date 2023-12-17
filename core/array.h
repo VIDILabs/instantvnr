@@ -13,11 +13,6 @@
 
 #include <cuda_runtime.h>
 
-#if defined(ENABLE_OPTIX)
-#include <optix.h>
-#include <optix_stubs.h>
-#endif
-
 #include "mathdef.h"
 
 #include <array>

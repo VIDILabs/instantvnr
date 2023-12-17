@@ -7,7 +7,7 @@
 #include "samplers/neural_sampler.h"
 #include "networks/tcnn_device_api.h"
 
-#include <cuda/cuda_utils.h>
+#include <cuda/cuda_misc.h>
 
 #include <vidi_highperformance_timer.h>
 

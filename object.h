@@ -27,51 +27,6 @@
 
 namespace vnr {
 
-// inline std::pair<Array1DFloat4, cudaArray_t>
-// CreateColorMap(const std::string& name)
-// {
-//   if (colormap::data.count(name) > 0) {
-//     std::vector<vec4f>& arr = *((std::vector<vec4f>*)colormap::data.at(name));
-//     return CreateArray1DFloat4(arr);
-//   }
-//   else {
-//     throw std::runtime_error("Unexpected colormap name: " + name);
-//   }
-// }
-
-// ------------------------------------------------------------------
-//
-// ------------------------------------------------------------------
-
-#if defined(ENABLE_OPTIX)
-
-#define ALIGN_SBT __align__(OPTIX_SBT_RECORD_ALIGNMENT)
-
-/*! SBT record for a raygen program */
-struct ALIGN_SBT RaygenRecord {
-  ALIGN_SBT char header[OPTIX_SBT_RECORD_HEADER_SIZE]{};
-  // just a dummy value - later examples will use more interesting data here
-  void* data{};
-};
-
-/*! SBT record for a miss program */
-struct ALIGN_SBT MissRecord {
-  ALIGN_SBT char header[OPTIX_SBT_RECORD_HEADER_SIZE]{};
-  // just a dummy value - later examples will use more interesting data here
-  void* data{};
-};
-
-/*! SBT record for a hitgroup program */
-struct ALIGN_SBT HitgroupRecord {
-  ALIGN_SBT char header[OPTIX_SBT_RECORD_HEADER_SIZE]{};
-  void* data{};
-};
-
-OptixTraversableHandle
-buildas_exec(OptixDeviceContext context, cudaStream_t stream, std::vector<OptixBuildInput> input, CUDABuffer& asBuffer);
-
-#endif
-
 // ------------------------------------------------------------------
 //
 // ------------------------------------------------------------------
@@ -93,8 +48,6 @@ public:
   }
 
   virtual CUdeviceptr get_sbt_pointer(cudaStream_t stream) = 0;
-
-  // virtual CUdeviceptr d_pointer() const = 0;
 
   virtual void commit(cudaStream_t stream) = 0;
 
@@ -122,62 +75,12 @@ struct InstantiableGeometry {
   void transform(float transform[12]) const;
 };
 
-struct AabbGeometry {
-private:
-#if defined(ENABLE_OPTIX)
-  // the AABBs for procedural geometries
-  OptixAabb aabb{ 0.f, 0.f, 0.f, 1.f, 1.f, 1.f };
-#endif
-
-  CUDABuffer aabbBuffer;
-  CUDABuffer asBuffer; // buffer that keeps the (final, compacted) accel structure
-
-public:
-  ~AabbGeometry()
-  {
-    aabbBuffer.free(0);
-    asBuffer.free(0);
-  }
-
-#if defined(ENABLE_OPTIX)
-  OptixTraversableHandle buildas(OptixDeviceContext optixContext, cudaStream_t stream = 0);
-#endif
-};
-
-struct MeshGeometry {
-private:
-  uint32_t asBuildflag{};
-  CUDABuffer asBuffer; // buffer that keeps the (final, compacted) accel structure
-
-protected:
-  /*! the model we are going to trace rays against */
-  std::vector<vec3f> vertex;
-  std::vector<vec3i> index;
-
-  /*! one buffer per input mesh */
-  CUDABuffer vertexBuffer;
-  CUDABuffer indexBuffer;
-
-public:
-  ~MeshGeometry()
-  {
-    asBuffer.free(0);
-    vertexBuffer.free(0);
-    indexBuffer.free(0);
-  }
-
-#if defined(ENABLE_OPTIX)
-  OptixTraversableHandle buildas(OptixDeviceContext optixContext, cudaStream_t stream = 0);
-#endif
-};
-
 // ------------------------------------------------------------------
 //
 // ------------------------------------------------------------------
 
 struct StructuredRegularVolume
   : protected HasSbtEquivalent<DeviceVolume>
-  , public AabbGeometry
   , public InstantiableGeometry {
 private:
   range1f original_data_range;

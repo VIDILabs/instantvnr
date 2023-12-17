@@ -47,7 +47,7 @@ if(OVR_BUILD_MODULE_NNVOLUME)
   endif()
 
   # Two projects uses different target names ...
-  if(TARGET rendercommon)
+  if((NOT TARGET util) AND (TARGET rendercommon))
     add_library(util ALIAS rendercommon)
   endif()
 
@@ -60,7 +60,6 @@ if(OVR_BUILD_MODULE_NNVOLUME)
   set(MACROCELL_SIZE_MIP 4)
   set(ENABLE_IN_SHADER ON)
   set(ENABLE_OUT_OF_CORE ON)
-  set(ENABLE_OPTIX  ON)
   set(ENABLE_OPENGL ON)
 
   add_subdirectory(core)

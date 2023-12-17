@@ -37,11 +37,7 @@ if(NOT target)
 endif()
 message(STATUS "target - ${target}")
 
-if(ENABLE_OPTIX)
-  include(configure_optix)
-else()
-  include(configure_cuda) # skip optix here
-endif()
+include(configure_cuda) # skip optix here
 
 if(DEFINED MACROCELL_SIZE_MIP)
   add_definitions(-DMACROCELL_SIZE_MIP=${MACROCELL_SIZE_MIP})
@@ -67,16 +63,11 @@ endif()
 add_library(${target} SHARED
   renderer/method_pathtracing.cu
   renderer/method_pathtracing.h
-  
   renderer/method_raymarching.cu
   renderer/method_raymarching.h
-
   renderer/method_shadowmap.cu
   renderer/method_shadowmap.h
-
-  renderer/raytracing_shaders.h
   renderer/raytracing.h
-  renderer/optix_program.h
   renderer/dda.h
 
   samplers/neural_sampler.cu
@@ -102,30 +93,10 @@ add_library(${target} SHARED
   ../serializer.h
   ../renderer.cpp
   ../renderer.h
+  
   ../api.cpp
   ../api.h
 )
-
-# optix7 is an interface target anyways, so keep it public
-if(ENABLE_OPTIX)
-  cuda_compile_and_embed(embedded_ptx_code_optix
-    renderer/method_optix.cu
-  DEPENDS
-    array.h
-    renderer/dda.h
-    renderer/raytracing.h
-    renderer/raytracing_shaders.h
-    renderer/method_optix.h
-  LINK 
-    gdt tfnmodule util
-  )
-  target_sources(${target} PRIVATE
-    ${embedded_ptx_code_optix}
-    renderer/method_optix.cu
-    renderer/method_optix.cpp
-  )
-  target_link_libraries(${target} PRIVATE OptiX::optix7)
-endif()
 
 if(ENABLE_IN_SHADER)
   target_sources(${target} PRIVATE
