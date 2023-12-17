@@ -38,7 +38,7 @@ private:
   mutable char* sbt_data{ NULL };
   mutable size_t sbt_size{ 0 };
 
-protected:
+public:
   T self;
 
 public:
@@ -80,9 +80,9 @@ struct InstantiableGeometry {
 // ------------------------------------------------------------------
 
 struct StructuredRegularVolume
-  : protected HasSbtEquivalent<DeviceVolume>
+  : public HasSbtEquivalent<DeviceVolume>
   , public InstantiableGeometry {
-private:
+public:
   range1f original_data_range;
 
   std::vector<vec4f> colors_data;

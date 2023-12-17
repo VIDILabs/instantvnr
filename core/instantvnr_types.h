@@ -57,10 +57,10 @@ public:
 
 struct SciVisMaterial {
 public:
-  const float ambient;
-  const float diffuse;
-  const float specular;
-  const float shininess;
+  float ambient;
+  float diffuse;
+  float specular;
+  float shininess;
 };
 
 struct TransferFunction {
@@ -134,10 +134,10 @@ struct LaunchParams {
 
   affine3f transform;
 
-  const float raymarching_shadow_sampling_scale = 2.f;
+  float raymarching_shadow_sampling_scale = 2.f;
 
   /* lights */
-  const float scivis_shading_scale = 0.95f;
+  float scivis_shading_scale = 0.95f;
 
   SciVisMaterial mat_gradient_shading{ .6f, .9f, .4f, 40.f };
   SciVisMaterial mat_full_shadow{ 1.f, .5f, .4f, 40.f };

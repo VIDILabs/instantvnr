@@ -92,13 +92,29 @@ MainRenderer::render()
   params.frame_index++;
   // params.frame_index = 1;
 
-  /* draw call */
-  if (!neural_volume_representation) {
-    render_normal();
+  // ------------------------------------- //
+  ctx.stream = framebuffer_stream;
+  if (framebuffer_reset) {
+    ctx.update(rendering_mode, 
+      volume.self.tfn,
+      volume.sampling_rate,
+      volume.self.density_scale,
+      volume.self.bbox.lower,
+      volume.self.bbox.upper,
+      camera_latest,
+      params.frame.size
+    );
   }
-  else {
-    render_neural();
-  }
+  ctx.render(params.frame.rgba, neural_volume_representation, volume.self.volume.data);
+  // ------------------------------------- //
+
+  // /* draw call */
+  // if (!neural_volume_representation) {
+  //   render_normal();
+  // }
+  // else {
+  //   render_neural();
+  // }
 
   // // finalize frame
   // try {
@@ -203,6 +219,16 @@ MainRenderer::set_scene(const cudaTextureObject_t& texture, ValueType type, vec3
 
   /* book keeping (might not be necessary) */
   framebuffer_reset = true;
+
+  // ------------------------------------- //
+  ctx.init(transform, 
+    type, dims, range,  
+    macrocell_dims, 
+    macrocell_spacings, 
+    macrocell_d_value_range, 
+    macrocell_d_max_opacity
+  );
+  // ------------------------------------- //
 }
 
 void
