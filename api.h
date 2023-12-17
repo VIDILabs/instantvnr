@@ -16,22 +16,19 @@
 #include <memory>
 
 namespace vnr {
-
 using json = nlohmann::json;
-struct VolumeContext;
-struct RendererContext;
-struct TransferFunction;
 struct Camera;
-
+struct TransferFunction;
+struct VolumeContext;
+struct RenderContext;
 }
 
-typedef std::shared_ptr<vnr::VolumeContext>   vnrVolume;
-typedef std::shared_ptr<vnr::RendererContext> vnrRenderer;
-
-typedef std::shared_ptr<vnr::TransferFunction> vnrTransferFunction;
 typedef std::shared_ptr<vnr::Camera> vnrCamera;
+typedef std::shared_ptr<vnr::TransferFunction> vnrTransferFunction;
 
 typedef vnr::ValueType vnrType;
+typedef std::shared_ptr<vnr::VolumeContext> vnrVolume;
+typedef std::shared_ptr<vnr::RenderContext> vnrRenderer;
 
 enum vnrRenderMode {
   // reference ray marcher implmented in optix

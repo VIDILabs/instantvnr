@@ -41,10 +41,27 @@ struct NeuralVolumeContext : VolumeContext
   bool isNetwork() const override { return true; };
 };
 
-struct RendererContext 
+struct RenderContext
 {
-  MainRenderer renderer;
+  // MainRenderer renderer;
+
   vnrVolume volume;
+  Camera camera;
+
+  TransferFunctionAPI tfn;
+  RenderAPI render;
+
+  int rendering_mode{ VNR_INVALID };
+
+  // volume states
+  float sampling_rate{ 1.f };
+  float density_scale{ 1.f };
+
+  // framebuffer states
+  FrameBuffer framebuffer;
+  cudaStream_t framebuffer_stream{};
+  vec2i framebuffer_size;
+  bool framebuffer_reset{ true };
 };
 
 }
