@@ -24,7 +24,7 @@
 #pragma once
 
 #include "api.h"
-#include "object.h"
+// #include "object.h"
 #include "framebuffer.h"
 
 #include "core/renderer/method_raymarching.h"
@@ -207,15 +207,16 @@ public:
   /*! resize frame buffer to given resolution */
   void resize(const vec2i& new_size)
   {
+    framebuffer_size = new_size;
     // resize our cuda frame buffer
     framebuffer.resize(new_size);
     reset_frame();
-    // update the launch parameters that we'll pass to the optix launch:
-    params.frame.size = framebuffer.size();
+    // // update the launch parameters that we'll pass to the optix launch:
+    // params.frame.size = framebuffer.size();
     // and re-set the camera, since aspect may have changed
     set_camera(camera_latest);
-    // resize auxiliary frame buffers
-    framebuffer_accumulation.resize(params.frame.size.long_product() * sizeof(vec4f), framebuffer_stream);
+    // // resize auxiliary frame buffers
+    // framebuffer_accumulation.resize(params.frame.size.long_product() * sizeof(vec4f), framebuffer_stream);
   }
 
   /*! set camera to render with */
@@ -232,19 +233,50 @@ public:
 
   void set_transfer_function(const std::vector<vec3f>& c, const std::vector<vec2f>& o, const range1f& r)
   {
-    volume.set_transfer_function(framebuffer_stream, c, o, r);
+    // volume.set_transfer_function(framebuffer_stream, c, o, r);
+
+    std::vector<vec4f> colors_data;
+    std::vector<float> alphas_data;
+
+    colors_data.resize(c.size());
+    for (int i = 0; i < colors_data.size(); ++i) {
+      colors_data[i].x = c[i].x;
+      colors_data[i].y = c[i].y;
+      colors_data[i].z = c[i].z;
+      colors_data[i].w = 1.f;
+    }
+    alphas_data.resize(o.size());
+    for (int i = 0; i < alphas_data.size(); ++i) {
+      alphas_data[i] = o[i].y;
+    }
+
+    if (!colors_data.empty())
+      CreateArray1DFloat4(framebuffer_stream, colors_data, tfn_color_array_handler, tfn.colors);
+    if (!alphas_data.empty())
+      CreateArray1DScalar(framebuffer_stream, alphas_data, tfn_alpha_array_handler, tfn.alphas);
+
+    // set_value_range(r.x, r.y);
+
+    if (!r.is_empty()) {
+      tfn.range.upper = min(original_data_range.upper, r.upper);
+      tfn.range.lower = max(original_data_range.lower, r.lower);
+    }
+    tfn.range_rcp_norm = 1.f / tfn.range.span();
+    
     reset_frame();
   }
 
   void set_volume_sampling_rate(float r)
   {
-    volume.set_sampling_rate(r);
+    // volume.set_sampling_rate(r);
+    sampling_rate = r;
     reset_frame();
   }
 
   void set_volume_density_scale(float s)
   {
-    volume.set_density_scale(s);
+    // volume.set_density_scale(s);
+    density_scale = s;
     reset_frame();
   }
 
@@ -253,8 +285,8 @@ public:
     rendering_mode = b;
     reset_frame();
 
-    program_raymarching.clear(framebuffer_stream);
-    program_pathtracing.clear(framebuffer_stream);
+    // program_raymarching.clear(framebuffer_stream);
+    // program_pathtracing.clear(framebuffer_stream);
   }
 
   void set_denoiser(bool enable)
@@ -263,8 +295,8 @@ public:
 
   void set_output_as_cuda_framebuffer() { framebuffer_skip_download = true; }
 
-  const StructuredRegularVolume& get_volume() const { return volume; }
-  StructuredRegularVolume&       get_volume()       { return volume; }
+  // const StructuredRegularVolume& get_volume() const { return volume; }
+  // StructuredRegularVolume&       get_volume()       { return volume; }
 
   void reset_frame() { framebuffer_reset = true; }
 
@@ -276,46 +308,58 @@ protected:
   /*! helper function that initializes optix and checks for errors */
   void initCuda();
 
-  /*! render volume */
-  void render_normal();
-  void render_neural();
+  // /*! render volume */
+  // void render_normal();
+  // void render_neural();
 
-protected:
-  /*! @{ CUDA device context and stream that optix pipeline will run on, as well as device properties for this device */
-  cudaDeviceProp cuda_device_props{};
-  CUcontext cuda_context{};
-  cudaStream_t optix_default_stream{};
-  /*! @} */
+public:
+  // /*! @{ CUDA device context and stream that optix pipeline will run on, as well as device properties for this device */
+  // cudaDeviceProp cuda_device_props{};
+  // CUcontext cuda_context{};
+  // cudaStream_t optix_default_stream{};
+  // /*! @} */
 
   /*! @{ our launch parameters, on the host, and the buffer to store them on the device */
-  LaunchParams params;
+  // LaunchParams params;
   /*! @} */
 
-  NeuralVolume* neural_volume_representation{ nullptr };
 
-  MethodRayMarching program_raymarching;
-  MethodPathTracing program_pathtracing;
+  // MethodRayMarching program_raymarching;
+  // MethodPathTracing program_pathtracing;
 
   // --------------------------------------------------------------- //
   // --------------------------------------------------------------- //
   int rendering_mode{ VNR_INVALID };
 
+  NeuralVolume* neural_volume_representation{ nullptr };
   /*! we handle one volume and multiple geometries potentially */
   const cudaTextureObject_t* p_volume_data_texture{nullptr};
-  StructuredRegularVolume volume;
+  cudaTextureObject_t volume_data_texture{ 0 };
+  // StructuredRegularVolume volume;
 
   /*! the rendered image */
   FrameBuffer framebuffer;
   cudaStream_t framebuffer_stream{};
   bool framebuffer_reset{ true };
-  CUDABuffer framebuffer_accumulation;
   bool framebuffer_skip_download{ false };
+  // CUDABuffer framebuffer_accumulation;
+  vec2i framebuffer_size;
+
+  // volume states
+  float sampling_rate{ 1.f };
+  float density_scale{ 1.f };
+  DeviceTransferFunction tfn;
+  box3f bbox = box3f(vec3f(0), vec3f(1)); // object space box
+  cudaArray_t tfn_color_array_handler{};
+  cudaArray_t tfn_alpha_array_handler{};
+  range1f original_data_range;
+
 
   /*! the camera we are to render with. */
   Camera camera_latest;
 
-
-
+  // --------------------------------------------------------------- //
+  // --------------------------------------------------------------- //
   RenderContext ctx;
 };
 

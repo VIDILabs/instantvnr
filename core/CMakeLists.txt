@@ -87,8 +87,8 @@ add_library(${target} SHARED
 
   array.h
 
-  ../object.cpp
-  ../object.h
+  # ../object.cpp
+  # ../object.h
   ../serializer.cpp
   ../serializer.h
   ../renderer.cpp

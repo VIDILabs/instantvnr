@@ -71,7 +71,7 @@ public:
 
   void set_transfer_function(const std::vector<vec3f>& c, const std::vector<vec2f>& o, const range1f& r) { 
     renderer.set_transfer_function(c, o, r);
-    macrocell.update_max_opacity(renderer.get_volume().device().tfn, nullptr);
+    macrocell.update_max_opacity(renderer.tfn, nullptr);
   }
 
   void set_volume_sampling_rate(float r) { 
