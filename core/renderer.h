@@ -42,14 +42,16 @@ namespace vnr {
 // I/O helper functions
 // ------------------------------------------------------------------
 
-struct TransferFunctionAPI
-{
-  DeviceTransferFunction tfn;
-  cudaArray_t tfn_color_array_handler{};
-  cudaArray_t tfn_alpha_array_handler{};
-  ~TransferFunctionAPI();
-  void update(const TransferFunction& tfn, const range1f original_data_range, cudaStream_t stream);
-};
+// struct TransferFunctionAPI
+// {
+//   DeviceTransferFunction tfn;
+//   cudaArray_t tfn_color_array_handler{};
+//   cudaArray_t tfn_alpha_array_handler{};
+//   ~TransferFunctionAPI();
+//   void update(const TransferFunction& tfn, const range1f original_data_range, cudaStream_t stream);
+// };
+
+typedef TransferFunctionObject TransferFunctionAPI;
 
 struct RenderAPI {
   LaunchParams params;

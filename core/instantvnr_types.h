@@ -208,8 +208,10 @@ struct TransferFunctionObject {
   DeviceTransferFunction tfn;
   cudaArray_t tfn_color_array_handler{};
   cudaArray_t tfn_alpha_array_handler{};
+  ~TransferFunctionObject() { clean(); }
   void clean();
   void set_transfer_function(const std::vector<vec3f>& c, const std::vector<vec2f>& o, const range1f& r, cudaStream_t stream);
+  void update(const TransferFunction& tfn, const range1f original_data_range, cudaStream_t stream);
 };
 
 struct VolumeObject 

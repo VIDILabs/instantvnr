@@ -232,7 +232,6 @@ public:
 
   ~Impl()
   {
-    tfn.clean();
   }
 
   void resize_trainer(const vec3i lower, const vec3i upper, const vec3i gdims, const size_t batch_size)
