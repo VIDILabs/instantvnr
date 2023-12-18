@@ -25,7 +25,7 @@
 
 #include "api.h"
 // #include "object.h"
-#include "framebuffer.h"
+// #include "framebuffer.h"
 
 #include "core/renderer/method_raymarching.h"
 #include "core/renderer/method_pathtracing.h"
@@ -171,6 +171,7 @@ struct RenderAPI {
   }
 };
 
+#if 0
 /*! a sample OptiX-7 renderer that demonstrates how to set up
     context, module, programs, pipeline, SBT, etc, and perform a
     valid launch that renders some pixel (using a simple test
@@ -372,5 +373,6 @@ public:
   RenderAPI ctx;
 };
 
+#endif
 
 } // namespace vnr

@@ -7,8 +7,9 @@
 #include "core/network.h"
 #include "core/sampler.h"
 
-#include "serializer.h"
 #include "renderer.h"
+#include "serializer.h"
+#include "framebuffer.h"
 
 namespace vnr {
 

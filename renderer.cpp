@@ -103,7 +103,7 @@ void TransferFunctionAPI::update(const TransferFunction& input, const range1f or
 
 
 
-
+#if 0
 
 
 static void
@@ -396,5 +396,6 @@ MainRenderer::initCuda()
   if (result != CUDA_SUCCESS)
     fprintf(stderr, "Error querying current context: error code %d\n", result);
 }
+#endif
 
-} // namespace ovr
+} // namespace vnr

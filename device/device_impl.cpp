@@ -26,7 +26,6 @@
 
 #include <iostream>
 
-
 namespace ovr::nnvolume {
 
 // ------------------------------------------------------------------
@@ -94,7 +93,23 @@ DeviceNNVolume::Impl::render()
 
   // framebuffer.download_async();
 
-  renderer.render();
+  if (framebuffer_reset) {
+    ctx.update(
+      rendering_mode, 
+      transfer_function.tfn,
+      sampling_rate,
+      density_scale,
+      clipbox.lower,
+      clipbox.upper,
+      camera_latest,
+      framebuffer_size
+    );
+    framebuffer_reset = false;
+  }
+
+  ctx.render(framebuffer.device_pointer(), nullptr, volume_data.data);
+
+  // renderer.render();
 }
 
 void 
@@ -109,59 +124,43 @@ DeviceNNVolume::Impl::init(int argc, const char** argv, DeviceNNVolume* p)
   // setup scene
   // --------------------------------------------
   const auto& scene = parent->current_scene;
-  assert(scene.instances.size() == 1 && "[nncache] only accept one instance");
-  assert(scene.instances[0].models.size() == 1 && "[nncache] only accept one model");
-  assert(scene.instances[0].models[0].type == scene::Model::VOLUMETRIC_MODEL && "[nncache] only accept volume");
-  assert(scene.instances[0].models[0].volume_model.volume.type == scene::Volume::STRUCTURED_REGULAR_VOLUME && "[nncache] only accept structured regular volume");
+  auto& sv = ovr::parse_single_volume_scene(scene, scene::Volume::STRUCTURED_REGULAR_VOLUME).structured_regular;
   auto& st = scene.instances[0].models[0].volume_model.transfer_function;
-  auto& sv = scene.instances[0].models[0].volume_model.volume.structured_regular;
 
   // --------------------------------------------
   // create volume texture
-  // --------------------------------------------
-  Array3DScalarCUDA output = CreateArray3DScalarCUDA(sv.data);
-  std::cout << "[nncache] volume range = " << output.lower.v << " " << output.upper.v << std::endl;
-
-  // --------------------------------------------
   // create volume transformation
   // --------------------------------------------
   vec3f scale = sv.grid_spacing * vec3f(sv.data->dims);
   vec3f translate = sv.grid_origin;
-  auto matrix = affine3f::translate(translate) * affine3f::scale(scale);
+  auto transform = affine3f::translate(translate) * affine3f::scale(scale);
+  volume_data = CreateArray3DScalarCUDA(sv.data);
+  std::cout << "[nncache] volume range = " << volume_data.lower.v << " " << volume_data.upper.v << std::endl;
 
   // --------------------------------------------
   // set macrcell
   // --------------------------------------------
-  macrocell.set_shape(output.dims);
+  macrocell.set_shape(volume_data.dims);
   macrocell.allocate();
-  macrocell.compute_everything(output.data);
+  macrocell.compute_everything(volume_data.data);
 
   // // --------------------------------------------
-  // // set volume
+  // // convert transfer function
   // // --------------------------------------------
-  // volume.matrix = affine3f::translate(translate) * affine3f::scale(scale);
-  // volume.set_volume(output.data, (vnr::ValueType)output.type, output.dims, range1f(output.lower.v, output.upper.v));
-  // volume.set_sampling_rate(scene.volume_sampling_rate);
-  // volume.set_macrocell(macrocell.dims(), macrocell.spacings(), macrocell.d_value_range(), macrocell.d_max_opacity());
-  // volume.get_sbt_pointer(0); // hmm this is necessary
-
-  // --------------------------------------------
-  // convert transfer function
-  // --------------------------------------------
-  std::vector<vec3f> colors_data;
-  std::vector<vec2f> alphas_data;
-  colors_data.resize(st.color->size());
-  for (int i = 0; i < colors_data.size(); ++i) {
-    colors_data[i].x = st.color->data_typed<vec4f>()[i].x;
-    colors_data[i].y = st.color->data_typed<vec4f>()[i].y;
-    colors_data[i].z = st.color->data_typed<vec4f>()[i].z;
-  }
-  alphas_data.resize(st.opacity->size());
-  for (int i = 0; i < alphas_data.size(); ++i) {
-    alphas_data[i].x = (float)i / (alphas_data.size() - 1);
-    alphas_data[i].y = st.opacity->data_typed<float>()[i];
-  }
-  set_transfer_function(colors_data, alphas_data, range1f(st.value_range.x, st.value_range.y));
+  // std::vector<vec3f> colors_data;
+  // std::vector<vec2f> alphas_data;
+  // colors_data.resize(st.color->size());
+  // for (int i = 0; i < colors_data.size(); ++i) {
+  //   colors_data[i].x = st.color->data_typed<vec4f>()[i].x;
+  //   colors_data[i].y = st.color->data_typed<vec4f>()[i].y;
+  //   colors_data[i].z = st.color->data_typed<vec4f>()[i].z;
+  // }
+  // alphas_data.resize(st.opacity->size());
+  // for (int i = 0; i < alphas_data.size(); ++i) {
+  //   alphas_data[i].x = (float)i / (alphas_data.size() - 1);
+  //   alphas_data[i].y = st.opacity->data_typed<float>()[i];
+  // }
+  // set_transfer_function(colors_data, alphas_data, range1f(st.value_range.x, st.value_range.y));
 
   // vnrJson params = vnrCreateJsonBinary("/home/qadwu/Work/ovr/data/params.json");
   // params.erase("macrocell");
@@ -175,19 +174,36 @@ DeviceNNVolume::Impl::init(int argc, const char** argv, DeviceNNVolume* p)
   // --------------------------------------------
   //
   // --------------------------------------------
-  renderer.set_scene(output.data, 
-                     (vnr::ValueType)output.type, 
-                     output.dims,
-                     range1f(output.lower.v, output.upper.v), 
-                     matrix, 
-                     macrocell.dims(),
-                     macrocell.spacings(),
-                     macrocell.d_value_range(),
-                     macrocell.d_max_opacity());
+  // renderer.set_scene(output.data, 
+  //                    (vnr::ValueType)output.type, 
+  //                    output.dims,
+  //                    range1f(output.lower.v, output.upper.v), 
+  //                    matrix, 
+  //                    macrocell.dims(),
+  //                    macrocell.spacings(),
+  //                    macrocell.d_value_range(),
+  //                    macrocell.d_max_opacity());
+  // renderer.set_rendering_mode(5);
+  // renderer.set_output_as_cuda_framebuffer();
+  // renderer.init();
 
-  renderer.set_rendering_mode(5);
-  renderer.set_output_as_cuda_framebuffer();
-  renderer.init();
+  framebuffer.create();
+  framebuffer_stream = framebuffer.current_stream();
+  ctx.stream = framebuffer_stream;
+
+    ctx.init(
+      transform,
+      (vnr::ValueType)volume_data.type, 
+      volume_data.dims, 
+      vnr::range1f(volume_data.lower.v, volume_data.upper.v),
+       macrocell.dims(),
+       macrocell.spacings(),
+       macrocell.d_value_range(),
+       macrocell.d_max_opacity()
+    );
+
+  rendering_mode = 5;
+  framebuffer_reset = true;
 }
 
 // void 
@@ -218,12 +234,19 @@ void
 DeviceNNVolume::Impl::commit()
 {
   if (parent->params.fbsize.update()) {
-    resize(parent->params.fbsize.ref());
+    // resize(parent->params.fbsize.ref());
+
+    framebuffer_size = parent->params.fbsize.ref();
+    framebuffer.resize(framebuffer_size);
+    framebuffer_reset = true;
   }
 
   /* commit other data */
   if (parent->params.camera.update()) {
-    set_camera(parent->params.camera.ref());
+    // set_camera(parent->params.camera.ref());
+    const auto& camera = parent->params.camera.ref();
+    camera_latest = vnr::Camera{ camera.from, camera.at, camera.up };
+    framebuffer_reset = true;
   }
 
   if (parent->params.tfn.update()) {
@@ -241,15 +264,35 @@ DeviceNNVolume::Impl::commit()
       tfn_alphas_data[i].x = tfn.tfn_alphas[2 * i + 0];
       tfn_alphas_data[i].y = tfn.tfn_alphas[2 * i + 1];
     }
-    set_transfer_function(tfn_colors_data, tfn_alphas_data, range1f(tfn.tfn_value_range.x, tfn.tfn_value_range.y));
+    // set_transfer_function(tfn_colors_data, tfn_alphas_data, range1f(tfn.tfn_value_range.x, tfn.tfn_value_range.y));
+
+    vnr::TransferFunction data;
+    data.color = tfn_colors_data;
+    data.alpha = tfn_alphas_data;
+    data.range = range1f(tfn.tfn_value_range.x, tfn.tfn_value_range.y);
+
+    vnr::range1f range = vnr::range1f(volume_data.lower.v, volume_data.upper.v);
+  
+    transfer_function.update(data, range, ctx.stream);
+
+    macrocell.update_max_opacity(transfer_function.tfn, ctx.stream);
+    framebuffer_reset = true;
   }
 
-  if (parent->params.path_tracing.update()) {
-    shading = parent->params.path_tracing.get();
-  }
+  // if (parent->params.path_tracing.update()) {
+  //   shading = parent->params.path_tracing.get();
+  // }
 
   if (parent->params.volume_sampling_rate.update()) {
-    set_volume_sampling_rate(parent->params.volume_sampling_rate.get());
+    // set_volume_sampling_rate(parent->params.volume_sampling_rate.get());
+    sampling_rate = parent->params.volume_sampling_rate.get();
+    framebuffer_reset = true;
+  }
+
+  if (parent->params.volume_density_scale.update()) {
+    // set_volume_density_scale(parent->params.volume_density_scale.get());
+    density_scale = parent->params.volume_density_scale.get();
+    framebuffer_reset = true;
   }
 }
 
