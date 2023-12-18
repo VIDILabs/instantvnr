@@ -7,7 +7,6 @@ FROM nvidia/cuda:11.6.2-devel-ubuntu20.04
 
 # Select a CUDA architecture to build. Currently we do not support multi-arch builds.
 ARG CUDA_ARCH=70
-
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update 
@@ -35,7 +34,8 @@ RUN wget -qO- "https://github.com/oneapi-src/oneTBB/releases/download/v2021.9.0/
 
 # Create a superbuild
 RUN git clone --recursive https://github.com/VIDILabs/open-volume-renderer.git /instantvnr/ovr
-RUN git clone --recursive https://github.com/VIDILabs/instantvnr.git /instantvnr/source
+# RUN git clone --recursive https://github.com/VIDILabs/instantvnr.git /instantvnr/source
+COPY . /instantvnr/source
 RUN ln -s /instantvnr/source /instantvnr/ovr/projects/instantvnr
 
 # Config and build
