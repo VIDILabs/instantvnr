@@ -121,8 +121,25 @@ DeviceNNVolume::Impl::init(int argc, const char** argv, DeviceNNVolume* p)
   framebuffer.create();
   ctx.stream = framebuffer_stream = framebuffer.current_stream();
 
+  vnr::ValueType vnr_type;
+
+  switch (volume_data.type) {
+  case VALUE_TYPE_UINT8:  vnr_type = vnr::ValueType::VALUE_TYPE_UINT8; break;
+  case VALUE_TYPE_INT8:   vnr_type = vnr::ValueType::VALUE_TYPE_INT8; break;
+  case VALUE_TYPE_UINT16: vnr_type = vnr::ValueType::VALUE_TYPE_UINT16; break;
+  case VALUE_TYPE_INT16:  vnr_type = vnr::ValueType::VALUE_TYPE_INT16; break;
+  case VALUE_TYPE_UINT32: vnr_type = vnr::ValueType::VALUE_TYPE_UINT32; break;
+  case VALUE_TYPE_INT32:  vnr_type = vnr::ValueType::VALUE_TYPE_INT32; break;
+  case VALUE_TYPE_FLOAT:  vnr_type = vnr::ValueType::VALUE_TYPE_FLOAT; break;
+  case VALUE_TYPE_DOUBLE: vnr_type = vnr::ValueType::VALUE_TYPE_DOUBLE; break;
+  case VALUE_TYPE_FLOAT2: vnr_type = vnr::ValueType::VALUE_TYPE_FLOAT2; break;
+  case VALUE_TYPE_FLOAT3: vnr_type = vnr::ValueType::VALUE_TYPE_FLOAT3; break;
+  case VALUE_TYPE_FLOAT4: vnr_type = vnr::ValueType::VALUE_TYPE_FLOAT4; break;
+  default: throw std::runtime_error("unknown type encountered");
+  }
+
   ctx.init(transform,
-    (vnr::ValueType)volume_data.type, 
+    vnr_type, 
     volume_data.dims, 
     vnr::range1f(volume_data.lower.v, volume_data.upper.v),
     macrocell.dims(),
