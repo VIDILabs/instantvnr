@@ -458,18 +458,11 @@ vnrRenderer vnrCreateRenderer(vnrVolume v)
 {
   auto self = std::make_shared<RenderContext>();
   self->volume = v;
-
-  // auto& renderer = self->renderer;
-
   self->framebuffer.create();
   self->framebuffer_stream = self->framebuffer.current_stream();
   self->render.stream = self->framebuffer_stream;
-
   if (self->volume->isNetwork()) {
     auto& source = std::dynamic_pointer_cast<NeuralVolumeContext>(self->volume)->neural;
-
-    // std::cout << "INF MC " <<  neural.get_macrocell_value_range() << std::endl;
-
     self->render.init(
       source.get_data_transform(),
       source.get_data_type(), 
@@ -480,23 +473,10 @@ vnrRenderer vnrCreateRenderer(vnrVolume v)
       source.get_macrocell_value_range(), 
       source.get_macrocell_max_opacity()
     );
-    
-    // renderer.set_scene(neural.texture(), 
-    //                    neural.get_data_type(), 
-    //                    neural.get_data_dims(), 
-    //                    neural.get_data_value_range(), 
-    //                    neural.get_data_transform(), 
-    //                    neural.get_macrocell_dims(), 
-    //                    neural.get_macrocell_spacings(), 
-    //                    neural.get_macrocell_value_range(), 
-    //                    neural.get_macrocell_max_opacity(), 
-    //                    &neural);
   }
   else {
     auto& source = std::dynamic_pointer_cast<SimpleVolumeContext>(self->volume)->source;
-
     // std::cout << "REF MC " <<  source.get_macrocell_value_range() << std::endl;
-
     self->render.init(
       source.get_data_transform(),
       source.get_data_type(), 
@@ -507,50 +487,30 @@ vnrRenderer vnrCreateRenderer(vnrVolume v)
       source.get_macrocell_value_range(), 
       source.get_macrocell_max_opacity()
     );
-
-    // renderer.set_scene(source.texture(), 
-    //                    source.get_data_type(), 
-    //                    source.get_data_dims(), 
-    //                    source.get_data_value_range(), 
-    //                    source.get_data_transform(), 
-    //                    source.get_macrocell_dims(), 
-    //                    source.get_macrocell_spacings(), 
-    //                    source.get_macrocell_value_range(), 
-    //                    source.get_macrocell_max_opacity());
   }
-
-  // renderer.set_scene_clipbox(self->volume->clipbox);
-  // renderer.set_rendering_mode(5);
-  // // 1179636.polaris-pbs-01.hsn.cm.polaris.alcf.anl.gov (without init, OKAY (1.893421 - 1.891434)GB = 1.987 MB), problem in init)
-  // renderer.init();
-
   self->framebuffer_reset = true;
-
   return self;
 }
 
 void vnrRendererSetMode(vnrRenderer self, int mode)
 {
-  // self->renderer.set_rendering_mode(mode);
   self->rendering_mode = mode;
   self->framebuffer_reset = true;
 }
 
 void vnrRendererSetDenoiser(vnrRenderer self, bool flag)
 {
-  // self->renderer.set_denoiser(flag);
+  ;
 }
 
 void vnrRendererSetVolumeSamplingRate(vnrRenderer self, float rate)
 {
-  // self->renderer.set_volume_sampling_rate(rate);
   self->sampling_rate = rate;
   self->framebuffer_reset = true;
 }
 
 void vnrRendererSetVolumeDensityScale(vnrRenderer self, float value)
 {
-  // self->renderer.set_volume_density_scale(value);
   self->density_scale = value;
   self->framebuffer_reset = true;
 }
@@ -581,14 +541,12 @@ void vnrRendererSetTransferFunction(vnrRenderer self, vnrTransferFunction _tfn)
 
 void vnrRendererSetCamera(vnrRenderer self, vnrCamera cam)
 {
-  // self->renderer.set_camera(*cam);
   self->camera = *cam;
   self->framebuffer_reset = true;
 }
 
 void vnrRendererSetFramebufferSize(vnrRenderer self, vec2i fbsize)
 {
-  // self->renderer.resize(fbsize);
   self->framebuffer.resize(fbsize);
   self->framebuffer_size = fbsize;
   self->framebuffer_reset = true;
@@ -596,8 +554,6 @@ void vnrRendererSetFramebufferSize(vnrRenderer self, vec2i fbsize)
 
 vnr::vec4f *vnrRendererMapFrame(vnrRenderer self)
 {
-  // self->renderer.mapframe(&pixels);
-
   CUDA_CHECK(cudaStreamSynchronize(self->framebuffer_stream));
   vec4f *pixels = self->framebuffer.host_pointer();
 
@@ -610,14 +566,11 @@ vnr::vec4f *vnrRendererMapFrame(vnrRenderer self)
 
 void vnrRendererResetAccumulation(vnrRenderer self)
 {
-  // self->renderer.reset_frame();
   self->framebuffer_reset = true;
 }
 
 void vnrRender(vnrRenderer self)
 {
-  // self->renderer.render();
-
   if (self->framebuffer_reset) {
     self->render.update(
       self->rendering_mode, 

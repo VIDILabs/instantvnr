@@ -44,14 +44,12 @@ struct NeuralVolumeContext : VolumeContext
 
 struct RenderContext
 {
-  // MainRenderer renderer;
-
   vnrVolume volume;
   Camera camera;
-
   TransferFunctionAPI tfn;
   RenderAPI render;
 
+  // other states
   int rendering_mode{ VNR_INVALID };
 
   // volume states

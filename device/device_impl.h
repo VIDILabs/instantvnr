@@ -59,39 +59,15 @@ public:
     fb->rgba->set_data(pixels, framebuffer_size.long_product() * sizeof(vec4f), 
                        CrossDeviceBuffer::DEVICE_CUDA);
 
-    // renderer.mapframe(&pixels);
-
     framebuffer.safe_swap();
     framebuffer_stream = framebuffer.current_stream();
     ctx.stream = framebuffer_stream;
   }
 
   void set_scene_clipbox(const box3f& clip) { 
-    // renderer.set_scene_clipbox(clip);
     clipbox = clip;
     framebuffer_reset = true;
   }
-
-  // void resize(const vec2i& size) {
-  //   renderer.resize(size); fbsize = size;
-  // }
-
-  // void set_camera(const Camera& camera) { 
-  //   renderer.set_camera(vnr::Camera{ camera.from, camera.at, camera.up });
-  // }
-
-  // void set_transfer_function(const std::vector<vec3f>& c, const std::vector<vec2f>& o, const range1f& r) { 
-  //   renderer.set_transfer_function(c, o, r);
-  //   macrocell.update_max_opacity(renderer.tfn, nullptr);
-  // }
-
-  // void set_volume_sampling_rate(float r) { 
-  //   renderer.set_volume_sampling_rate(r); 
-  // } 
-
-  // void set_volume_density_scale(float s) { 
-  //   renderer.set_volume_density_scale(s); 
-  // }
 
 protected:
   // vnr::MainRenderer renderer;
@@ -99,7 +75,7 @@ protected:
 
   // --------------------------------------------------------------- //
   // --------------------------------------------------------------- //
-  int rendering_mode{ VNR_INVALID };
+  int rendering_mode{ VNR_PATHTRACING_DECODING };
 
   // NeuralVolume* neural_volume_representation{ nullptr };
   // /*! we handle one volume and multiple geometries potentially */
