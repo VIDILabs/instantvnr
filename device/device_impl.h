@@ -60,8 +60,7 @@ public:
                        CrossDeviceBuffer::DEVICE_CUDA);
 
     framebuffer.safe_swap();
-    framebuffer_stream = framebuffer.current_stream();
-    ctx.stream = framebuffer_stream;
+    ctx.stream = framebuffer_stream = framebuffer.current_stream();
   }
 
   void set_scene_clipbox(const box3f& clip) { 
@@ -70,12 +69,9 @@ public:
   }
 
 protected:
-  // vnr::MainRenderer renderer;
-  vnr::MacroCell macrocell;
 
   // --------------------------------------------------------------- //
-  // --------------------------------------------------------------- //
-  int rendering_mode{ VNR_PATHTRACING_DECODING };
+  int rendering_mode{ 5 };
 
   // NeuralVolume* neural_volume_representation{ nullptr };
   // /*! we handle one volume and multiple geometries potentially */
@@ -83,14 +79,14 @@ protected:
   // cudaTextureObject_t volume_data_texture{ 0 };
   // // StructuredRegularVolume volume;
 
+  // --------------------------------------------------------------- //
   /*! the rendered image */
   FrameBuffer framebuffer;
   cudaStream_t framebuffer_stream{};
   bool framebuffer_reset{ true };
-  // bool framebuffer_skip_download{ false };
-  // CUDABuffer framebuffer_accumulation;
   vec2i framebuffer_size;
 
+  // --------------------------------------------------------------- //
   // vnrVolume v_occlusion;
   // cudaTextureObject_t* simple_occlusion{ nullptr };
   // vnr::NeuralVolume* neural_occlusion{ nullptr };
@@ -100,17 +96,12 @@ protected:
   float sampling_rate{ 1.f };
   float density_scale{ 1.f };
   box3f clipbox = box3f(vec3f(0), vec3f(1)); // object space box
-
-  // DeviceTransferFunction tfn;
-  // cudaArray_t tfn_color_array_handler{};
-  // cudaArray_t tfn_alpha_array_handler{};
   range1f original_data_range;
 
-  /*! the camera we are to render with. */
+  // --------------------------------------------------------------- //
+  // handlers
   vnr::Camera camera_latest;
-
-  // --------------------------------------------------------------- //
-  // --------------------------------------------------------------- //
+  vnr::MacroCell macrocell;
   vnr::TransferFunctionAPI transfer_function;
   vnr::RenderAPI ctx;
 };

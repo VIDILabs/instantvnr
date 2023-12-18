@@ -495,6 +495,16 @@ vnrRenderer vnrCreateRenderer(vnrVolume v)
 void vnrRendererSetMode(vnrRenderer self, int mode)
 {
   self->rendering_mode = mode;
+  if (mode < 4) {
+    std::string name = "???";
+    switch ((vnrRenderMode)mode) {
+    case VNR_OPTIX_NO_SHADING: name = "VNR_OPTIX_NO_SHADING"; break;
+    case VNR_OPTIX_GRADIENT_SHADING: name = "VNR_OPTIX_GRADIENT_SHADING"; break;
+    case VNR_OPTIX_FULL_SHADOW: name = "VNR_OPTIX_FULL_SHADOW"; break;
+    case VNR_OPTIX_SINGLE_SHADE_HEURISTIC: name = "VNR_OPTIX_SINGLE_SHADE_HEURISTIC"; break;
+    }
+    std::cerr << "Error: OptiX-based rendering mode (" << mode << ":" << name << ") is deprecated" << std::endl;
+  }
   self->framebuffer_reset = true;
 }
 

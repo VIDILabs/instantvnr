@@ -77,7 +77,7 @@ DeviceNNVolume::Impl::init(int argc, const char** argv, DeviceNNVolume* p)
   // --------------------------------------------
   vec3f scale = sv.grid_spacing * vec3f(sv.data->dims);
   vec3f translate = sv.grid_origin;
-  auto transform = affine3f::translate(translate) * affine3f::scale(scale);
+  affine3f transform = affine3f::translate(translate) * affine3f::scale(scale);
   volume_data = CreateArray3DScalarCUDA(sv.data);
   std::cout << "[nncache] volume range = " << volume_data.lower.v << " " << volume_data.upper.v << std::endl;
 
@@ -119,19 +119,17 @@ DeviceNNVolume::Impl::init(int argc, const char** argv, DeviceNNVolume* p)
   // framebuffer creation and initialization
   // --------------------------------------------
   framebuffer.create();
-  framebuffer_stream = framebuffer.current_stream();
-  ctx.stream = framebuffer_stream;
+  ctx.stream = framebuffer_stream = framebuffer.current_stream();
 
-    ctx.init(
-      transform,
-      (vnr::ValueType)volume_data.type, 
-      volume_data.dims, 
-      vnr::range1f(volume_data.lower.v, volume_data.upper.v),
-       macrocell.dims(),
-       macrocell.spacings(),
-       macrocell.d_value_range(),
-       macrocell.d_max_opacity()
-    );
+  ctx.init(transform,
+    (vnr::ValueType)volume_data.type, 
+    volume_data.dims, 
+    vnr::range1f(volume_data.lower.v, volume_data.upper.v),
+    macrocell.dims(),
+    macrocell.spacings(),
+    macrocell.d_value_range(),
+    macrocell.d_max_opacity()
+  );
 
   framebuffer_reset = true;
 }
@@ -183,7 +181,7 @@ DeviceNNVolume::Impl::commit()
 
   if (parent->params.path_tracing.update()) {
     if (parent->params.path_tracing.get()) {
-      rendering_mode =  VNR_PATHTRACING_DECODING;
+      rendering_mode =  VNR_PATHTRACING_SAMPLE_STREAMING;
     }
     else {
       rendering_mode =  VNR_RAYMARCHING_NO_SHADING_SAMPLE_STREAMING;

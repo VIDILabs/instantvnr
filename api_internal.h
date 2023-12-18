@@ -6,10 +6,9 @@
 #include "core/instantvnr_types.h"
 #include "core/network.h"
 #include "core/sampler.h"
-
-#include "renderer.h"
-#include "serializer.h"
-#include "framebuffer.h"
+#include "core/renderer.h"
+#include "core/serializer.h"
+#include "core/framebuffer.h"
 
 namespace vnr {
 
