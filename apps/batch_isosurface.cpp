@@ -13,7 +13,6 @@
 #include "cmdline.h"
 
 #include <api.h>
-#include <core/marching_cube.cuh>
 
 #include <vidi_highperformance_timer.h>
 

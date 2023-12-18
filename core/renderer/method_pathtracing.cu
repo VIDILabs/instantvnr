@@ -207,12 +207,13 @@ MethodPathTracing::render(cudaStream_t stream, const LaunchParams& _params, Devi
   params.volume = volume;
 
   const uint32_t numPixels = (uint32_t)params.frame.size.long_product();
+  const uint32_t numPixelsPadded = util::next_multiple(numPixels, 256U);
 
   if (iterative) {
-    size_t nBytes = numPixels * sizeof(SampleStreamingPayload);
-    nBytes += numPixels * sizeof(uint32_t); // shadow and pidx
-    nBytes += numPixels * sizeof(vec3f); // dir
-    nBytes += numPixels * sizeof(vec3f); // org
+    size_t nBytes = numPixelsPadded * sizeof(SampleStreamingPayload);
+    nBytes += numPixelsPadded * sizeof(uint32_t); // shadow and pidx
+    nBytes += numPixelsPadded * sizeof(vec3f); // dir
+    nBytes += numPixelsPadded * sizeof(vec3f); // org
     nBytes += sizeof(uint32_t); // counter
 
     sample_streaming_buffer.resize(nBytes, stream);
@@ -222,23 +223,23 @@ MethodPathTracing::render(cudaStream_t stream, const LaunchParams& _params, Devi
     size_t offset = 0;
 
     // allocate staging data
-    params.pidx_and_shadow = define_buffer<uint32_t>(begin, offset, numPixels);
-    params.org = define_buffer<vec3f>(begin, offset, numPixels);
-    params.dir = define_buffer<vec3f>(begin, offset, numPixels);
-    params.scatter_index = define_buffer<uint32_t>(begin, offset, numPixels);
-    params.sample_coord = define_buffer<vec3f>(begin, offset, util::next_multiple(numPixels,256U));
-    params.sample_value = define_buffer<float>(begin, offset, util::next_multiple(numPixels,256U));
-    params.majorant = define_buffer<float>(begin, offset, numPixels);
-    params.L = define_buffer<vec3f>(begin, offset, numPixels);
-    params.throughput = define_buffer<vec3f>(begin, offset, numPixels);
+    params.pidx_and_shadow = define_buffer<uint32_t>(begin, offset, numPixelsPadded);
+    params.org = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+    params.dir = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+    params.scatter_index = define_buffer<uint32_t>(begin, offset, numPixelsPadded);
+    params.sample_coord = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+    params.sample_value = define_buffer<float>(begin, offset, numPixelsPadded);
+    params.majorant = define_buffer<float>(begin, offset, numPixelsPadded);
+    params.L = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+    params.throughput = define_buffer<vec3f>(begin, offset, numPixelsPadded);
 #if VARYING_MAJORANT
-    params.iter_t_next = define_buffer<vec3f>(begin, offset, numPixels);
-    params.iter_cell = define_buffer<vec3i>(begin, offset, numPixels);
-    params.iter_next_cell_begin = define_buffer<float>(begin, offset, numPixels);
+    params.iter_t_next = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+    params.iter_cell = define_buffer<vec3i>(begin, offset, numPixelsPadded);
+    params.iter_next_cell_begin = define_buffer<float>(begin, offset, numPixelsPadded);
 #else
-    params.iter_t = define_buffer<float>(begin, offset, numPixels);
+    params.iter_t = define_buffer<float>(begin, offset, numPixelsPadded);
 #endif
-    params.rng = define_buffer<RandomTEA>(begin, offset, numPixels);
+    params.rng = define_buffer<RandomTEA>(begin, offset, numPixelsPadded);
 
     params.counter = define_buffer<uint32_t>(begin, offset, 1);
   }

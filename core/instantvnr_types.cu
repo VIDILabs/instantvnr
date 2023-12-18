@@ -6,46 +6,30 @@ void
 TransferFunctionObject::clean()
 {
   if (tfn_color_array_handler) {
-    CUDA_CHECK_NOEXCEPT(cudaFreeArray(tfn_color_array_handler));
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFreeArray(tfn_color_array_handler));
     tfn_color_array_handler = NULL;
-    util::total_n_bytes_allocated() -= tfn.colors.length * sizeof(float4);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    printf("[mem] Array1D free %s\n", util::prettyBytes(tfn.colors.length * sizeof(float4)).c_str());
-#endif
   }
   if (tfn.colors.data) {
     CUDA_CHECK_NOEXCEPT(cudaDestroyTextureObject(tfn.colors.data));
     tfn.colors.data = { 0 };
   }
   if (tfn.colors.rawptr) {
-    CUDA_CHECK_NOEXCEPT(cudaFree(tfn.colors.rawptr));
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFree(tfn.colors.rawptr, tfn.colors.length * sizeof(float4)));
     tfn.colors.rawptr = nullptr;
-    util::total_n_bytes_allocated() -= tfn.colors.length * sizeof(float4);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    printf("[mem] Linear free %s\n", util::prettyBytes(tfn.colors.length * sizeof(float4)).c_str());
-#endif
   }
   tfn.colors.length = 0;
 
   if (tfn_alpha_array_handler) {
-    CUDA_CHECK_NOEXCEPT(cudaFreeArray(tfn_alpha_array_handler));
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFreeArray(tfn_alpha_array_handler));
     tfn_color_array_handler = NULL;
-    util::total_n_bytes_allocated() -= tfn.alphas.length * sizeof(float);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    printf("[mem] Array1D free %s\n", util::prettyBytes(tfn.alphas.length * sizeof(float)).c_str());
-#endif
   }
   if (tfn.alphas.data) {
     CUDA_CHECK_NOEXCEPT(cudaDestroyTextureObject(tfn.alphas.data));
     tfn.alphas.data = { 0 };
   }
   if (tfn.alphas.rawptr) {
-    CUDA_CHECK_NOEXCEPT(cudaFree(tfn.alphas.rawptr));
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFree(tfn.alphas.rawptr, tfn.alphas.length * sizeof(float)));
     tfn.alphas.rawptr = nullptr;
-    util::total_n_bytes_allocated() -= tfn.alphas.length * sizeof(float);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    printf("[mem] Linear free %s\n", util::prettyBytes(tfn.alphas.length * sizeof(float)).c_str());
-#endif
   }
   tfn.alphas.length = 0;
 }
@@ -74,15 +58,30 @@ TransferFunctionObject::set_transfer_function(const std::vector<vec3f>& c, const
 
   TRACE_CUDA;
 
-  if (!colors_data.empty())
+  if (!colors_data.empty()) {
     CreateArray1DFloat4(stream, colors_data, tfn_color_array_handler, tfn.colors);
-  
+  }
+
   TRACE_CUDA;
 
-  if (!alphas_data.empty())
+  if (!alphas_data.empty()) {
     CreateArray1DScalar(stream, alphas_data, tfn_alpha_array_handler, tfn.alphas);
+  }
 
   TRACE_CUDA;
+}
+
+void 
+TransferFunctionObject::update(const TransferFunction& input, const range1f original_data_range, cudaStream_t stream)
+{
+  const std::vector<vec3f>& c = input.color;
+  const std::vector<vec2f>& o = input.alpha;
+  range1f r = input.range;
+  if (!r.is_empty()) {
+    r.upper = min(original_data_range.upper, r.upper);
+    r.lower = max(original_data_range.lower, r.lower);
+  }
+  set_transfer_function(c, o, r, stream);
 }
 
 INSTANT_VNR_NAMESPACE_END

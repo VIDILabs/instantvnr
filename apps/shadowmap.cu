@@ -149,7 +149,7 @@ public:
         device.tfn.range_rcp_norm = 1.f / (device.tfn.value_range.y - device.tfn.value_range.x);
     }
 
-    void load_lights(Scene &scene)
+    void load_lights(const Scene &scene)
     {
         lights.clear();
         for (auto& li : scene.lights) {
@@ -169,10 +169,10 @@ public:
 
 };
 
-void commit(Scene &scene, HostVolume &volume)
+void commit(const Scene &scene, HostVolume &volume)
 {
-    auto &st = scene.instances[0].models[0].volume_model.transfer_function;
-    auto &sv = scene.instances[0].models[0].volume_model.volume.structured_regular;
+    auto& sv = ovr::parse_single_volume_scene(scene, scene::Volume::STRUCTURED_REGULAR_VOLUME).structured_regular;
+    auto& st = scene.instances[0].models[0].volume_model.transfer_function;
 
     vec3f scale     = sv.grid_spacing * vec3f(sv.data->dims);
     vec3f translate = sv.grid_origin;
@@ -436,7 +436,6 @@ int main(int ac, char **av)
     scene.volume_sampling_rate = args.sampling_rate();
     scene.ao_samples = args.shadow_samples();
 
-    auto &scene_vol = scene.instances[0].models[0].volume_model.volume.structured_regular;
     auto &scene_tfn = scene.instances[0].models[0].volume_model.transfer_function;
 
     // generate random lights

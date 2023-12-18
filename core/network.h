@@ -29,7 +29,8 @@ using json = nlohmann::json;
 class NeuralVolume : public VolumeObject
 {
 public:
-  static size_t total_n_bytes_allocated_by_tcnn();
+  static size_t tot_nbytes_allocated_by_tcnn();
+  static size_t max_nbytes_allocated_by_tcnn();
   static void   free_temporary_gpu_memory_by_tcnn();
 
   struct Statistics {
@@ -38,7 +39,7 @@ public:
   };
 
   ~NeuralVolume();
-  NeuralVolume();
+  NeuralVolume(size_t batchsize = 1 << 16);
   NeuralVolume(const NeuralVolume& other) = delete;
   NeuralVolume(NeuralVolume&& other) noexcept = default;
   NeuralVolume& operator=(const NeuralVolume& other) = delete;
@@ -67,6 +68,9 @@ public:
   void set_network_from_json(const json& config);
 
   uint32_t  get_num_blobs() const;
+
+  uint32_t get_mlp_size() const;
+  uint32_t get_enc_size() const;
 
   float get_mse(vec3i resolution, bool quiet = false) const;
   float get_psnr(vec3i resolution, bool quiet = false) const;

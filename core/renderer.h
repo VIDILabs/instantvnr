@@ -21,69 +21,71 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
-#include "method_optix.h"
+#pragma once
+
+#include "api.h"
+#include "core/renderer/method_raymarching.h"
+#include "core/renderer/method_pathtracing.h"
+
+#include <array>
+#include <cstring>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <map>
+#include <vector>
 
 namespace vnr {
 
-extern "C" char embedded_ptx_code_optix[];
-
 // ------------------------------------------------------------------
-//
+// I/O helper functions
 // ------------------------------------------------------------------
 
-MethodOptiX::MethodOptiX() : OptixProgram(embedded_ptx_code_optix, RAY_TYPE_COUNT)
-{
-  OptixProgram::HitGroupShaders s;
+// struct TransferFunctionAPI
+// {
+//   DeviceTransferFunction tfn;
+//   cudaArray_t tfn_color_array_handler{};
+//   cudaArray_t tfn_alpha_array_handler{};
+//   ~TransferFunctionAPI();
+//   void update(const TransferFunction& tfn, const range1f original_data_range, cudaStream_t stream);
+// };
 
-  shader_raygen = "__raygen__default";
+typedef TransferFunctionObject TransferFunctionAPI;
 
-  shader_misses.push_back("__miss__radiance");
-  shader_misses.push_back("__miss__shadow");
+struct RenderAPI {
+  LaunchParams params;
+  DeviceVolume self;
+  CUDABuffer device_buffer;
+  MethodRayMarching program_raymarching;
+  MethodPathTracing program_pathtracing;
 
-  /* objects */
-  {
-    OptixProgram::ObjectGroup group;
-    group.type = VOLUME_STRUCTURED_REGULAR;
+  // --------------------------------------------------------------- //
+  // --------------------------------------------------------------- //
+  int rendering_mode{ VNR_INVALID };
+  CUDABuffer framebuffer_accumulation;
+  cudaStream_t stream{ nullptr };
 
-    s.shader_CH = "__closesthit__volume_radiance";
-    s.shader_AH = "__anyhit__volume_radiance";
-    s.shader_IS = "__intersection__volume";
-    group.hitgroup.push_back(s);
+  void init(
+    affine3f transform, 
+    ValueType type, vec3i dims, range1f range, 
+    vec3i macrocell_dims, 
+    vec3f macrocell_spacings, 
+    vec2f* macrocell_d_value_range, 
+    float* macrocell_d_max_opacity
+  );
 
-    s.shader_CH = "__closesthit__volume_shadow";
-    s.shader_AH = "__anyhit__volume_shadow";
-    s.shader_IS = "__intersection__volume";
-    group.hitgroup.push_back(s);
+  void update(int rendering_mode, 
+    const DeviceTransferFunction& tfn,
+    float sampling_rate,
+    float density_scale,
+    vec3f clip_lower, 
+    vec3f clip_upper,
+    const Camera& camera,
+    const vec2i& framesize
+  );
 
-    shader_objects.push_back(group);
-  }
+  void render(vec4f* fb, NeuralVolume* neuralnet, cudaTextureObject_t grid);
+};
 
-  params_buffer.resize(sizeof(DefaultUserData), /*stream=*/0);
-}
-
-void
-MethodOptiX::render(cudaStream_t stream, const LaunchParams& _params, ShadingMode mode)
-{
-  DefaultUserData params = _params;
-  {
-    params.mode = mode;
-    params.traversable = ias[0].traversable;
-    params.geometry_traversable = ias[1].traversable;
-  }
-
-  params_buffer.upload_async(&params, 1, stream);
-
-  OPTIX_CHECK(optixLaunch(/*! pipeline we're launching launch: */
-                          pipeline.handle,
-                          stream,
-                          /*! parameters and SBT */
-                          params_buffer.d_pointer(),
-                          params_buffer.sizeInBytes,
-                          &sbt,
-                          /*! dimensions of the launch: */
-                          params.frame.size.x,
-                          params.frame.size.y,
-                          1));
-}
-
-} // namespace ovr
+} // namespace vnr

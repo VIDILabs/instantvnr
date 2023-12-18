@@ -16,22 +16,19 @@
 #include <memory>
 
 namespace vnr {
-
 using json = nlohmann::json;
-struct VolumeContext;
-struct RendererContext;
-struct TransferFunction;
 struct Camera;
-
+struct TransferFunction;
+struct VolumeContext;
+struct RenderContext;
 }
 
-typedef std::shared_ptr<vnr::VolumeContext>   vnrVolume;
-typedef std::shared_ptr<vnr::RendererContext> vnrRenderer;
-
-typedef std::shared_ptr<vnr::TransferFunction> vnrTransferFunction;
 typedef std::shared_ptr<vnr::Camera> vnrCamera;
+typedef std::shared_ptr<vnr::TransferFunction> vnrTransferFunction;
 
 typedef vnr::ValueType vnrType;
+typedef std::shared_ptr<vnr::VolumeContext> vnrVolume;
+typedef std::shared_ptr<vnr::RenderContext> vnrRenderer;
 
 enum vnrRenderMode {
   // reference ray marcher implmented in optix
@@ -120,9 +117,9 @@ void vnrSimpleVolumeSetCurrentTimeStep(vnrVolume, int time);
 int  vnrSimpleVolumeGetNumberOfTimeSteps(vnrVolume);
 
 // neural volume
-vnrVolume vnrCreateNeuralVolume(const vnrJson& config, vnrVolume groundtruth, bool online_macrocell_construction = true);
-vnrVolume vnrCreateNeuralVolume(const vnrJson& config, vnr::vec3i dims);
-vnrVolume vnrCreateNeuralVolume(const vnrJson& params);
+vnrVolume vnrCreateNeuralVolume(const vnrJson& config, vnrVolume groundtruth, bool online_macrocell_construction = true, size_t batchsize = 1 << 16);
+vnrVolume vnrCreateNeuralVolume(const vnrJson& config, vnr::vec3i dims, size_t batchsize = 1 << 16);
+vnrVolume vnrCreateNeuralVolume(const vnrJson& params, size_t batchsize = 1 << 16);
 
 void vnrNeuralVolumeSetModel (vnrVolume, const vnrJson& config);
 void vnrNeuralVolumeSetParams(vnrVolume, const vnrJson& params);
@@ -134,6 +131,9 @@ double vnrNeuralVolumeGetTestingLoss(vnrVolume);
 double vnrNeuralVolumeGetTrainingLoss(vnrVolume);
 int    vnrNeuralVolumeGetTrainingStep(vnrVolume);
 int    vnrNeuralVolumeGetNumberOfBlobs(vnrVolume);
+
+int vnrNeuralVolumeGetNBytesMultilayerPerceptron(vnrVolume);
+int vnrNeuralVolumeGetNBytesEncoding(vnrVolume);
 
 void vnrNeuralVolumeTrain(vnrVolume, int steps, bool fast_mode, bool verbose = false);
 void vnrNeuralVolumeDecodeProgressive(vnrVolume);
@@ -157,9 +157,11 @@ struct vnrIsosurface {
   float isovalue;   // input
   vnr::vec3f** ptr; // output
   size_t* size;     // output
+  double et = 0.0;   // output
 };
-void vnrMarchingCube(vnrVolume volume, vnrIsosurface isosurface, bool output_to_cuda_memory);
-void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface> isosurfaces, bool output_to_cuda_memory);
+double vnrMarchingCube(vnrVolume volume, float isovalue, vnr::vec3f** ptr, size_t* size, bool cuda);
+void vnrMarchingCube(vnrVolume volume, vnrIsosurface& isosurface, bool output_to_cuda_memory);
+void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface>& isosurfaces, bool output_to_cuda_memory);
 void vnrSaveTriangles(std::string filename, const vnr::vec3f* ptr, size_t size);
 
 // ------------------------------------------------------------------
@@ -197,7 +199,8 @@ vnr::vec4f* vnrRendererMapFrame(vnrRenderer);
 //
 // ------------------------------------------------------------------
 
-void vnrMemoryQuery(size_t* used_by_renderer, size_t* used_by_tcnn, unsigned long long * used_total = NULL);
+void vnrResetMaxMemory();
+void vnrMemoryQuery(size_t* used_by_self, size_t* used_by_tcnn, size_t* used_peak, size_t* used_total);
 void vnrMemoryQueryPrint(const char* prompt);
 void vnrFreeTemporaryGPUMemory();
 void vnrCompilationStatus(const char* prompt);

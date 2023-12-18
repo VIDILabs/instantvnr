@@ -13,11 +13,6 @@
 
 #include <cuda_runtime.h>
 
-#if defined(ENABLE_OPTIX)
-#include <optix.h>
-#include <optix_stubs.h>
-#endif
-
 #include "mathdef.h"
 
 #include <array>
@@ -70,11 +65,7 @@ static void
 CreateArray3DScalar(cudaArray_t& array, cudaTextureObject_t& tex, vec3i dims, bool trilinear, void* ptr = nullptr)
 {
   cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<T>();
-  CUDA_CHECK(cudaMalloc3DArray(&array, &channel_desc, make_cudaExtent(dims.x, dims.y, dims.z)));
-  util::total_n_bytes_allocated() += (size_t)dims.x * dims.y * dims.z * sizeof(T);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-	std::cout << "3D Texture: Allocating " << util::prettyBytes((size_t)dims.x * dims.y * dims.z * sizeof(T)) << std::endl;
-#endif
+  CUDA_CHECK(cudaTrackedMalloc3DArray(&array, &channel_desc, make_cudaExtent(dims.x, dims.y, dims.z)));
   const auto filter = trilinear ? cudaFilterModeLinear : cudaFilterModePoint;
   tex = createCudaTexture<T>(array, cudaReadModeElementType, filter, filter);
   if (ptr) CopyLinearMemoryToArray<T>((T*)ptr, array, dims, cudaMemcpyHostToDevice);
@@ -96,16 +87,15 @@ CreateArray1DScalar(cudaStream_t stream, const std::vector<T>& input, cudaArray_
 
   if (extent.width != input.size()) {
     if (array_handler) {
-      CUDA_CHECK(cudaFreeArray(array_handler));
+      CUDA_CHECK(cudaTrackedFreeArray(array_handler));
       array_handler = 0;
-      util::total_n_bytes_allocated() -= extent.width * sizeof(T);
     }
     if (output.data) {
       CUDA_CHECK(cudaDestroyTextureObject(output.data));
       output.data = 0;
     }
     if (output.rawptr) {
-      CUDA_CHECK(cudaFree(output.rawptr));
+      CUDA_CHECK(cudaTrackedFree(output.rawptr, extent.width * sizeof(T)));
       output.rawptr = 0;
     }
   }
@@ -122,11 +112,7 @@ CreateArray1DScalar(cudaStream_t stream, const std::vector<T>& input, cudaArray_
   }
 
   if (!output.rawptr) {
-    CUDA_CHECK(cudaMallocAsync((void**)&output.rawptr, output.length * sizeof(T), stream));
-    util::total_n_bytes_allocated() += output.length * sizeof(T);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-    std::cout << "[mem] Linear " << util::prettyBytes(output.length * sizeof(T)) << std::endl;
-#endif
+    CUDA_CHECK(cudaTrackedMallocAsync((void**)&output.rawptr, output.length * sizeof(T), stream));
   }
   CUDA_CHECK(cudaMemcpyAsync(output.rawptr, (void*)input.data(), output.length  * sizeof(T), cudaMemcpyHostToDevice, stream));
 }
@@ -144,16 +130,15 @@ CreateArray1DFloat4(cudaStream_t stream, const std::vector<float4>& input, cudaA
 
   if (extent.width != input.size()) {
     if (array_handler) {
-      CUDA_CHECK(cudaFreeArray(array_handler));
+      CUDA_CHECK(cudaTrackedFreeArray(array_handler));
       array_handler = 0;
-      util::total_n_bytes_allocated() -= extent.width * sizeof(float4);
     }
     if (output.data) {
       CUDA_CHECK(cudaDestroyTextureObject(output.data));
       output.data = 0;
     }
     if (output.rawptr) {
-      CUDA_CHECK(cudaFree(output.rawptr));
+      CUDA_CHECK(cudaTrackedFree(output.rawptr, extent.width * sizeof(float4)));
       output.rawptr = 0;
     }
   }
@@ -170,11 +155,7 @@ CreateArray1DFloat4(cudaStream_t stream, const std::vector<float4>& input, cudaA
   }
 
   if (!output.rawptr) {
-    CUDA_CHECK(cudaMallocAsync((void**)&output.rawptr, output.length * sizeof(float4), stream));
-    util::total_n_bytes_allocated() += output.length * sizeof(float4);
-#ifdef VNR_VERBOSE_MEMORY_ALLOCS
-	  std::cout << "[mem] Linear " << util::prettyBytes(output.length * sizeof(float4)) << std::endl;
-#endif
+    CUDA_CHECK(cudaTrackedMallocAsync((void**)&output.rawptr, output.length * sizeof(float4), stream));
   }
   CUDA_CHECK(cudaMemcpyAsync(output.rawptr, (void*)input.data(), output.length  * sizeof(float4), cudaMemcpyHostToDevice, stream));
   // CUDA_SYNC_CHECK();

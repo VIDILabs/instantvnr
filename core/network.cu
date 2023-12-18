@@ -19,7 +19,6 @@
 
 #include <cuda/cuda_buffer.h>
 #include <cuda/cuda_math.h>
-#include <cuda/texture.h>
 
 #include <cuda_runtime.h>
 
@@ -41,6 +40,50 @@
 #include <thread>
 #include <vector>
 #include <ctime>
+
+// make a private version of thrust::plus to avoid template instantiation conflicts ...
+namespace {
+
+template<typename T>
+struct maximum_op {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? rhs : lhs; }
+}; // end maximum
+
+template<typename T>
+struct minimum_op {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? lhs : rhs; }
+}; // end minimum
+
+template<typename T>
+struct plus {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T &lhs, const T &rhs) const { return lhs + rhs; }
+}; // end plus
+
+template<typename T>
+T parallel_sum_gpu(const T* __restrict__ data, size_t count, cudaStream_t stream = nullptr) {
+  const auto begin = thrust::device_ptr<const T>(data);
+  const auto end = begin + count;
+  return thrust::reduce(thrust::cuda::par.on(stream), begin, end, T(0), plus<T>());
+}
+
+template<typename T>
+void parallel_minmax_gpu(const T* __restrict__ data, size_t count, T& init_min, T& init_max, cudaStream_t stream = nullptr) {
+  const auto begin = thrust::device_ptr<const T>(data);
+  const auto end = begin + count;
+  init_min = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_min, minimum_op<T>());
+  init_max = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_max, maximum_op<T>());
+}
+
+}
 
 namespace vnr {
 
@@ -181,7 +224,7 @@ public:
   cudaStream_t m_train_stream{};
 
 public:
-  Impl()
+  Impl(size_t batchsize) : m_batch_size(batchsize)
   {
     CUDA_CHECK(cudaStreamCreate(&m_infer_stream));
     m_train_stream = m_infer_stream;
@@ -189,7 +232,6 @@ public:
 
   ~Impl()
   {
-    tfn.clean();
   }
 
   void resize_trainer(const vec3i lower, const vec3i upper, const vec3i gdims, const size_t batch_size)
@@ -273,8 +315,7 @@ public:
       output[i] = l1_loss(pred[i], target[i]);
     });
 
-    const auto begin = thrust::device_ptr<float>(m_trainer.m_loss_buffer.data());
-    *loss = thrust::reduce(begin, begin + m_batch_size, 0.f, thrust::plus<float>()) / m_batch_size;
+    *loss = parallel_sum_gpu(m_trainer.m_loss_buffer.data(), m_batch_size, stream) / m_batch_size;
   }
 
   void progressively_decode()
@@ -360,9 +401,7 @@ public:
       slice_value.copy_to_host(values);
       vidi::filemap_random_write_update(w, bw, values.data(), sizeof(float) * count);
 
-      const auto gt = thrust::device_ptr<float>(slice_value.data());
-      value_max = thrust::reduce(gt, gt + count, value_max, thrust::maximum<float>());
-      value_min = thrust::reduce(gt, gt + count, value_min, thrust::minimum<float>());
+      parallel_minmax_gpu(slice_value.data(), count, value_min, value_max);
 
       bar.update((float)z / dims.z);
     }
@@ -400,9 +439,7 @@ public:
 
       ofile.write((char *)values.data(), sizeof(float) * count);
 
-      const auto gt = thrust::device_ptr<float>(slice_value.data());
-      value_max = thrust::reduce(gt, gt + count, value_max, thrust::maximum<float>());
-      value_min = thrust::reduce(gt, gt + count, value_min, thrust::minimum<float>());
+      parallel_minmax_gpu(slice_value.data(), count, value_min, value_max);
 
       bar.update((float)z / dims.z);
     }
@@ -460,9 +497,7 @@ public:
       });
 
       // compute total error
-      const auto begin = thrust::device_ptr<float>(loss);
-      error_sum += thrust::reduce(begin, begin + count, 0.f, thrust::plus<float>());
-
+      error_sum += parallel_sum_gpu(loss, count);
     }
     if (!quiet) bar.update((float)(z * dims.y + y) / (dims.y*dims.z));
     }
@@ -549,8 +584,7 @@ public:
       grid_input.copy_to_host(S.data(), block.long_product());
 
       // compute total ssim
-      const auto begin = thrust::device_ptr<float>(output);
-      ssim_sum += thrust::reduce(begin, begin + block_count, (float) 0, thrust::plus<float>());
+      ssim_sum += parallel_sum_gpu(output, block_count);
     }
     if (!quiet) bar.update((float)(z * dims.y + y) / (dims.y*dims.z));
     }
@@ -641,9 +675,7 @@ public:
       });
 
       // compute MSE
-      auto begin = thrust::device_ptr<float>(loss);
-      const auto error = thrust::reduce(begin, begin + count, 0.f, thrust::plus<float>()); 
-      const float mse = error / count;
+      const float mse = parallel_sum_gpu(loss, count) / count;
 
       // compute psnr
       const float range = 1.0f;
@@ -690,7 +722,7 @@ public:
 //
 // ------------------------------------------------------------------
 
-NeuralVolume::NeuralVolume() : pimpl(new Impl()) {}
+NeuralVolume::NeuralVolume(size_t batchsize) : pimpl(new Impl(batchsize)) {}
 
 NeuralVolume::~NeuralVolume() { 
   pimpl.reset(); 
@@ -963,6 +995,18 @@ NeuralVolume::get_num_blobs() const
   return (dims.z + num_slices_per_blob - 1) / num_slices_per_blob;
 }
 
+uint32_t  
+NeuralVolume::get_mlp_size() const
+{
+  return pimpl->m_neural->get_mlp_size();
+}
+
+uint32_t  
+NeuralVolume::get_enc_size() const
+{
+  return pimpl->m_neural->get_enc_size();
+}
+
 range1f
 NeuralVolume::get_data_value_range() const
 {
@@ -1037,15 +1081,28 @@ NeuralVolume::inference(int len, const float* d_input, float* d_output, cudaStre
   pimpl->m_neural->infer(input, output, stream);
 }
 
-size_t NeuralVolume::total_n_bytes_allocated_by_tcnn()
+size_t NeuralVolume::max_nbytes_allocated_by_tcnn()
+{
+  static std::atomic<size_t> maximum_value{0}; 
+
+  size_t value = tot_nbytes_allocated_by_tcnn();
+  size_t prev_value = maximum_value;
+  while(prev_value < value && !maximum_value.compare_exchange_weak(prev_value, value)) {}
+
+  return maximum_value;
+}
+
+size_t NeuralVolume::tot_nbytes_allocated_by_tcnn()
 {
   return TCNN_NAMESPACE :: total_n_bytes_allocated();
 }
 
 void NeuralVolume::free_temporary_gpu_memory_by_tcnn()
 {
+  max_nbytes_allocated_by_tcnn(); // foce an update
   TCNN_NAMESPACE :: free_all_gpu_memory_arenas();
   // TCNN_NAMESPACE :: gpu_memory_arenas().clear();
+  // std::cout << "[vnr] free temporary gpu memory" << std::endl;
 }
 
 } // namespace vnr

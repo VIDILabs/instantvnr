@@ -132,7 +132,7 @@ createCudaArray1D(const void* dataPtr, const size_t& size)
 
   // Allocate actually a 2D CUDA array of shape N x 1
   cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<Type>();
-  CUDA_CHECK(cudaMallocArray(&dataArr, &channel_desc, size, 1));
+  CUDA_CHECK(cudaTrackedMallocArray(&dataArr, &channel_desc, size, 1));
 
   // Copy data to the CUDA array
   const size_t nByte = size * sizeof(Type);

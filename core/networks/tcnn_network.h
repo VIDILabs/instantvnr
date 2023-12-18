@@ -88,7 +88,10 @@ struct AbstractNetwork {
   virtual void* network_direct_access() = 0;
   
   virtual size_t get_model_size() const = 0;
-  
+
+  virtual size_t get_mlp_size() const = 0;
+  virtual size_t get_enc_size() const = 0;
+
   virtual size_t training_step() const = 0;
   virtual double training_loss() const = 0;
 
@@ -141,6 +144,10 @@ public:
   void* network_direct_access() { return m_network.get(); }
   
   size_t get_model_size() const { return sizeof(tcnn_impl::precision_t) * m_network->n_params(); }
+
+  size_t get_mlp_size() const { return sizeof(tcnn_impl::precision_t) * m_network->m_network->n_params(); }
+
+  size_t get_enc_size() const { return sizeof(tcnn_impl::precision_t) * m_network->m_encoding->n_params(); }
 
   size_t training_step() const { return m_training_step; }
 

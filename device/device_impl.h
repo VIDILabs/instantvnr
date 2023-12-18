@@ -24,6 +24,7 @@
 #pragma once
 
 #include "device.h"
+#include "device_nnvolume_array.h"
 
 #include "api_internal.h"
 
@@ -53,46 +54,56 @@ public:
   void render();
 
   void mapframe(FrameBufferData* fb) {
-    vec4f *pixels = nullptr; renderer.mapframe(&pixels);
-    fb->rgba->set_data(pixels, fbsize.long_product() * sizeof(vec4f), CrossDeviceBuffer::DEVICE_CUDA);
+    CUDA_CHECK(cudaStreamSynchronize(framebuffer_stream));
+    vec4f *pixels = framebuffer.device_pointer(); 
+    fb->rgba->set_data(pixels, framebuffer_size.long_product() * sizeof(vec4f), 
+                       CrossDeviceBuffer::DEVICE_CUDA);
+
+    framebuffer.safe_swap();
+    ctx.stream = framebuffer_stream = framebuffer.current_stream();
   }
 
   void set_scene_clipbox(const box3f& clip) { 
-    renderer.set_scene_clipbox(clip);
-  }
-
-  void resize(const vec2i& size) {
-    renderer.resize(size); fbsize = size;
-  }
-
-  void set_camera(const Camera& camera) { 
-    renderer.set_camera(vnr::Camera{ camera.from, camera.at, camera.up });
-  }
-
-  void set_transfer_function(const std::vector<vec3f>& c, const std::vector<vec2f>& o, const range1f& r) { 
-    renderer.set_transfer_function(c, o, r);
-    macrocell.update_max_opacity(renderer.get_volume().device().tfn, nullptr);
-  }
-
-  void set_volume_sampling_rate(float r) { 
-    renderer.set_volume_sampling_rate(r); 
-  } 
-
-  void set_volume_density_scale(float s) { 
-    renderer.set_volume_density_scale(s); 
+    clipbox = clip;
+    framebuffer_reset = true;
   }
 
 protected:
-  vnr::MainRenderer renderer;
-  vnr::MacroCell macrocell;
 
+  // --------------------------------------------------------------- //
+  int rendering_mode{ 5 };
+
+  // NeuralVolume* neural_volume_representation{ nullptr };
+  // /*! we handle one volume and multiple geometries potentially */
+  // const cudaTextureObject_t* p_volume_data_texture{nullptr};
+  // cudaTextureObject_t volume_data_texture{ 0 };
+  // // StructuredRegularVolume volume;
+
+  // --------------------------------------------------------------- //
+  /*! the rendered image */
+  FrameBuffer framebuffer;
+  cudaStream_t framebuffer_stream{};
+  bool framebuffer_reset{ true };
+  vec2i framebuffer_size;
+
+  // --------------------------------------------------------------- //
   // vnrVolume v_occlusion;
   // cudaTextureObject_t* simple_occlusion{ nullptr };
   // vnr::NeuralVolume* neural_occlusion{ nullptr };
 
-  bool shading = false;
+  // volume states
+  Array3DScalarCUDA volume_data;
+  float sampling_rate{ 1.f };
+  float density_scale{ 1.f };
+  box3f clipbox = box3f(vec3f(0), vec3f(1)); // object space box
+  range1f original_data_range;
 
-  vec2i fbsize;
+  // --------------------------------------------------------------- //
+  // handlers
+  vnr::Camera camera_latest;
+  vnr::MacroCell macrocell;
+  vnr::TransferFunctionAPI transfer_function;
+  vnr::RenderAPI ctx;
 };
 
 }

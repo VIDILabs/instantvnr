@@ -1,4 +1,3 @@
-#include "marching_cube.cuh"
 #include "marching_cube_constants.cuh"
 
 #include <api.h>
@@ -7,6 +6,8 @@
 #include "instantvnr_types.h"
 #include "samplers/neural_sampler.h"
 #include "networks/tcnn_device_api.h"
+
+#include <cuda/cuda_misc.h>
 
 #include <vidi_highperformance_timer.h>
 
@@ -120,7 +121,7 @@ public:
 
   __device__ void compute_voxel_values(vec3i coord, float values[8]) const {
     for (int32_t i = 0; i < 8; i++) {
-      vec3f p = vec3f(coord + vertex_offset(i)) / vec3f(dims);
+      vec3f p = (vec3f(coord + vertex_offset(i)) + 0.5f) / vec3f(dims);
       values[i] = (float)Impl::sample(p);
     }
   }
@@ -179,8 +180,8 @@ __global__ void kComputeActiveVoxels(
 
   // printf("values (%f,%f,%f,%f,%f,%f,%f,%f)\n",values[0],values[1],values[2],values[3],values[4],values[5],values[6],values[7]);
 
-  if (!invalid) 
-  {
+  if (invalid) return;
+
     // Compute the case this falls into to see if this voxel has vertices
     uint8_t case_idx = 0u;
     #pragma unroll
@@ -192,7 +193,7 @@ __global__ void kComputeActiveVoxels(
     // Compute the number of vertices
     uint8_t n_verts = 0u;
     #pragma unroll
-    for (int8_t i = int8_t(0); MC_CASE_TABLE[case_idx * MC_CASE_ELEMENTS + i] != int8_t(-1); i++) {
+    for (int8_t i = int8_t(0); MC_CASE_TABLE[case_idx][i] != int8_t(-1); i++) {
       n_verts++;
     }
     assert(n_verts < MC_CASE_ELEMENTS);
@@ -203,7 +204,6 @@ __global__ void kComputeActiveVoxels(
     voxel.n_verts = n_verts;
     flags[index] = (n_verts > 0) ? uint8_t(1) : uint8_t(0);
     voxels[index] = voxel;
-  }
 }
 
 template<typename VolumeInfo>
@@ -234,23 +234,22 @@ __global__ void kComputeVertices(
 #endif
 
   // Compute vertex positions
-  if (!invalid) 
-  {
+  if (invalid) return;
+
     const uint32_t case_idx = voxel.case_idx;
     const int64_t vertex_offset = vertex_offsets[index];
 
     // Now we can finally compute and output the vertices
-    for (int32_t i = 0u; MC_CASE_TABLE[case_idx * MC_CASE_ELEMENTS + i] != -1; i++) {
-      auto edge = MC_CASE_TABLE[case_idx * MC_CASE_ELEMENTS + i];
-      auto v0 = EDGE_VERTICES[2 * edge + 0];
-      auto v1 = EDGE_VERTICES[2 * edge + 1];
+    for (int32_t i = 0u; MC_CASE_TABLE[case_idx][i] != -1; i++) {
+      auto edge = MC_CASE_TABLE[case_idx][i];
+      auto v0 = EDGE_VERTICES[edge][0];
+      auto v1 = EDGE_VERTICES[edge][1];
       // Compute the interpolated vertex for this edge within the unit cell
       auto v = volume.lerp_verts(volume.vertex_offset(v0), volume.vertex_offset(v1), values[v0], values[v1]);
       // Offset the vertex into the global volume grid
       v = v + vec3f(coord) + 0.5f;
       vertex_positions[vertex_offset + i] = v;
     }
-  }
 }
 
 template<typename T>
@@ -265,7 +264,7 @@ auto doExclusiveSum(int32_t num_items, const CUDABufferTyped<T> &input, CUDABuff
   CUDA_CHECK(cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out, num_items));
 
   // Allocate temporary storage
-  CUDA_CHECK(cudaMalloc(&d_temp_storage, temp_storage_bytes));
+  CUDA_CHECK(cudaTrackedMalloc(&d_temp_storage, temp_storage_bytes));
 
   // Run exclusive prefix sum
   CUDA_CHECK(cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out, num_items));
@@ -277,7 +276,7 @@ auto doExclusiveSum(int32_t num_items, const CUDABufferTyped<T> &input, CUDABuff
   CUDA_CHECK(cudaMemcpy(&sLast, d_out + num_items - 1, sizeof(sLast), cudaMemcpyDeviceToHost));
 
   // Cleanup
-  CUDA_CHECK(cudaFree(d_temp_storage));
+  CUDA_CHECK(cudaTrackedFree(d_temp_storage, temp_storage_bytes));
   return vLast + sLast;
 }
 
@@ -300,7 +299,7 @@ auto doStreamCompact(int32_t num_items, const CUDABufferTyped<T> &values, const 
   const T       *d_in    = values.d_pointer();    // e.g., [1, 2, 3, 4, 5, 6, 7, 8]
   T             *d_out   = compacted.d_pointer(); // e.g., [ ,  ,  ,  ,  ,  ,  ,  ]
   int32_t       *d_num_selected_out = NULL;       // e.g., [ ]
-  CUDA_CHECK(cudaMalloc(&d_num_selected_out, sizeof(int32_t)));
+  CUDA_CHECK(cudaTrackedMalloc(&d_num_selected_out, sizeof(int32_t)));
 
   // Determine temporary device storage requirements
   void *d_temp_storage = NULL;
@@ -308,19 +307,19 @@ auto doStreamCompact(int32_t num_items, const CUDABufferTyped<T> &values, const 
   CUDA_CHECK(cub::DevicePartition::Flagged(d_temp_storage, temp_storage_bytes, d_in, d_flags, d_out, d_num_selected_out, num_items));
   
   // Allocate temporary storage
-  CUDA_CHECK(cudaMalloc(&d_temp_storage, temp_storage_bytes));
+  CUDA_CHECK(cudaTrackedMalloc(&d_temp_storage, temp_storage_bytes));
   
   // Run selection
   CUDA_CHECK(cub::DevicePartition::Flagged(d_temp_storage, temp_storage_bytes, d_in, d_flags, d_out, d_num_selected_out, num_items));
   CUDA_CHECK(cudaDeviceSynchronize());
   // d_out                 <-- [1, 4, 6, 7, 8, 5, 3, 2]
   // d_num_selected_out    <-- [4]
-  CUDA_CHECK(cudaFree(d_temp_storage));
+  CUDA_CHECK(cudaTrackedFree(d_temp_storage, temp_storage_bytes));
   
   // Return
   int32_t num_selected_out;
   CUDA_CHECK(cudaMemcpy(&num_selected_out, d_num_selected_out, sizeof(num_selected_out), cudaMemcpyDeviceToHost));
-  CUDA_CHECK(cudaFree(d_num_selected_out));
+  CUDA_CHECK(cudaTrackedFree(d_num_selected_out, sizeof(int32_t)));
 
   // Shrink
   if (shrink) {
@@ -396,7 +395,7 @@ template<typename VolumeInfo>
 double doMarchingCubeTemplate(const VolumeInfo& volume_info, CUDABufferTyped<vec3f>& vertices)
 {
   vidi::details::HighPerformanceTimer timer;
-
+  timer.reset(); 
   timer.start();
 
   /* Marching Cubes execution has 5 steps
@@ -408,9 +407,9 @@ double doMarchingCubeTemplate(const VolumeInfo& volume_info, CUDABufferTyped<vec
    * 5. Compute and output vertices */
 
   CUDABufferTyped<VoxelInfo> active_voxels;
-  CUDABufferTyped<int64_t> vertex_offsets;
   const int64_t n_active_voxels = doComputeActiveVoxels(volume_info, active_voxels);
   if (n_active_voxels > 0) {
+    CUDABufferTyped<int64_t> vertex_offsets;
     vertex_offsets.alloc(n_active_voxels);
     const int64_t n_vertices = doComputeVertexOffsets(volume_info, n_active_voxels, active_voxels, vertex_offsets);
     vertices.alloc(n_vertices);
@@ -454,7 +453,7 @@ double doMarchingCubeTemplate__Network(const NeuralVolume& network, vec3i dims, 
   throw std::runtime_error("Unsupported MLP WIDTH for in-shader rendering");
 }
 
-void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, bool cuda)
+double vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, bool cuda)
 {
   CUDABufferTyped<vec3f> vertices;
 
@@ -500,31 +499,31 @@ void vnrMarchingCube(vnrVolume v, float iso, vnr::vec3f** ptr, size_t* size, boo
   *size = vertices.size();
   if (vertices.size() == 0) {
     std::cerr << "Warning: no vertices generated" << std::endl;
-    return;
-  }
-  // else {
-  //   std::cout << "Generated " << vertices.size() << " vertices" << std::endl;
-  // }
-
-  if (!cuda) {
-    *ptr = new vec3f[*size];
-    vertices.download(*ptr, *size);
   }
   else {
-    *ptr = vertices.release();
+
+    if (!cuda) {
+      *ptr = (vec3f*)(new float[(*size) * 3]);
+      vertices.download(*ptr, *size);
+    }
+    else {
+      *ptr = vertices.release();
+    }
   }
+
+  return et;
 }
 
-void vnrMarchingCube(vnrVolume volume, vnrIsosurface isosurface, bool output_to_cuda_memory)
+void vnrMarchingCube(vnrVolume volume, vnrIsosurface& isosurface, bool output_to_cuda_memory)
 {
-  vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
+  isosurface.et = vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
 }
 
-void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface> isosurfaces, bool output_to_cuda_memory)
+void vnrMarchingCube(vnrVolume volume, std::vector<vnrIsosurface>& isosurfaces, bool output_to_cuda_memory)
 {
-  // TODO: more efficient implementation?
+  // TODO: more efficient implementation ...
   for (auto& isosurface : isosurfaces) {
-    vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
+    isosurface.et = vnrMarchingCube(volume, isosurface.isovalue, isosurface.ptr, isosurface.size, output_to_cuda_memory);
   }
 }
 

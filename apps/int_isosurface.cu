@@ -66,7 +66,6 @@
 
 #include <api.h>
 #include <api_internal.h>
-#include <core/marching_cube.cuh>
 
 using namespace ovr::math;
 using ovr::Camera;
@@ -150,7 +149,7 @@ extract_isosurface(vnrVolume volume, float isovalue, ovr::scene::Geometry& geome
   std::vector<vec3f> h_colors;
 
   CUDA_CHECK(cudaMemcpy(h_vertices.data(), verts, n_verts * sizeof(vec3f), cudaMemcpyDeviceToHost));
-  CUDA_CHECK(cudaFree(verts));
+  CUDA_CHECK(cudaTrackedFree(verts, n_verts * sizeof(vec3f)));
 
   indices.download(h_indices);
   normals.download(h_normals);

@@ -32,6 +32,28 @@ struct Vec3fReader
   }
 };
 
+struct Vec3iReader
+{
+  void operator()(const std::string &name, const std::string &in, gdt::vec3i &destination)
+  {
+    const auto s = in.find_first_not_of('(');
+    const auto e = in.find_last_not_of (')');
+    auto value = in.substr(s, e - s+1);
+
+    auto curr = value.substr(0, value.find_first_of(','));
+    value = value.substr(value.find_first_of(',') + 1);
+
+    destination.x = std::stoi(curr);
+
+    curr = value.substr(0, value.find_first_of(','));
+    value = value.substr(value.find_first_of(',') + 1);
+
+    destination.y = std::stoi(curr);
+
+    destination.z = std::stoi(value);
+  }
+};
+
 }
 
 struct CmdArgsBase {

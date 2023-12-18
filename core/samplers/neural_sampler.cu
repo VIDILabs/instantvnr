@@ -7,6 +7,8 @@ using default_rng_t = TCNN_NAMESPACE :: default_rng_t;
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 
+#include <curand.h>
+
 // #define TEST_SIREN 
 
 #ifdef ENABLE_LOGGING
@@ -15,6 +17,10 @@ using default_rng_t = TCNN_NAMESPACE :: default_rng_t;
 static std::ostream null_output_stream(0);
 #define log() null_output_stream
 #endif
+
+#define CURAND_CALL(x) do { \
+  if ((x)!=CURAND_STATUS_SUCCESS) { printf("Error at %s:%d (%d)\n",__FILE__,__LINE__,x); } \
+} while(0)
 
 // ------------------------------------------------------------------
 //
@@ -43,9 +49,41 @@ void random_dbuffer_uint64(uint64_t* d_buffer, size_t batch, uint64_t min, uint6
   generate_random_uniform<uint64_t>(stream, rng, batch, d_buffer, min, max); // [min, max)
 }
 
+curandGenerator_t curand_create()
+{
+  curandGenerator_t gen;
+  /* Create pseudo-random number generator */
+  CURAND_CALL(curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT));
+  /* Set seed */
+  CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, 1234ULL));
+  return gen;
+}
+
+static curandGenerator_t generator = curand_create();
+
 // ------------------------------------------------------------------
 //
 // ------------------------------------------------------------------
+
+namespace {
+
+template<typename T>
+struct maximum_op {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? rhs : lhs; }
+}; // end maximum
+
+template<typename T>
+struct minimum_op {
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? lhs : rhs; }
+}; // end minimum
+
+}
 
 // function defined in network.cu (line 51-68)
 __global__ void generate_coords(uint32_t n_elements, vec3i lower, vec3i size, vec3f rdims, float* __restrict__ coords);
@@ -62,15 +100,23 @@ void normalize_buffer_device(const void* data, vec3i dims, range1f range, CUDABu
   double scale;
   if (range.is_empty()) {
     const auto d_ptr = thrust::device_ptr<T>((T*)d_buffer.d_pointer());
-    T value_max = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::lowest(), thrust::maximum<T>());
-    T value_min = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::max(), thrust::minimum<T>());
+    T value_max = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::lowest(), maximum_op<T>());
+    T value_min = thrust::reduce(d_ptr, d_ptr + count, std::numeric_limits<T>::max(), minimum_op<T>());
+    if (value_max == value_min) {
+      std::cout << "[vnr] warning: value_max == value_min == " << value_min << " " << value_max << std::endl;
+      value_max += 1e-6;
+      value_min -= 1e-6;
+    }    
     vmin = (double)value_min;
     scale = 1.0 / ((double)value_max - (double)value_min);
+    range.lower = (float)value_min;
+    range.upper = (float)value_max;
   }
   else {
     vmin = range.lower;
     scale = 1.0 / (range.upper - range.lower);
   }
+  // std::cout << "[vnr] range: " << range.lower << " " << range.upper << std::endl;
 
   // for now, we convert everything to floats
   d_floats.alloc(count*sizeof(float), NULL);
@@ -88,8 +134,7 @@ void normalize_buffer_device(const void* data, vec3i dims, range1f range, CUDABu
 CudaSampler::~CudaSampler()
 {
   if (m_array) {
-    CUDA_CHECK_NOEXCEPT(cudaFreeArray(m_array));
-    util::total_n_bytes_allocated() -= m_dims.long_product() * sizeof(float);
+    CUDA_CHECK_NOEXCEPT(cudaTrackedFreeArray(m_array));
     m_array = NULL;
   }
 
@@ -180,6 +225,32 @@ CudaSampler::sample(void* d_input, void* d_output, size_t batch_size, const vec3
 #else
   random_dbuffer_uniform((float*)d_input, batch_size * 3, stream);
 #endif
+
+  const char* env_sample_boundary = getenv("DIVA_DVNR_SAMPLE_BOUNDARY");
+  if (env_sample_boundary) {
+    const float weight = std::max(std::min(atof(env_sample_boundary), 1.), 0.);
+
+    const auto N = util::next_multiple<size_t>(size_t(batch_size*weight)/3, 128UL);
+    vec3f* d_coords = (vec3f*)d_input;
+
+    CUDABufferTyped<float> randns;
+    randns.alloc(3*N, stream);
+    CURAND_CALL(curandGenerateNormal(generator, randns.d_pointer(), 3*N, 0.f, /*std=*/0.005f));
+
+    auto transform = [] __device__ (float v) { return __saturatef(v < 0.f ? (v + 1.f) : v); };
+
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+0*N, d_randn=randns.d_pointer()+0*N, transform] __device__ (size_t i) { 
+      d_coords[i].x = transform(d_randn[i]);
+    });
+
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+1*N, d_randn=randns.d_pointer()+1*N, transform] __device__ (size_t i) { 
+      d_coords[i].y = transform(d_randn[i]);
+    });
+
+    util::parallel_for_gpu(0, stream, N, [d_coords=d_coords+2*N, d_randn=randns.d_pointer()+2*N, transform] __device__ (size_t i) { 
+      d_coords[i].z = transform(d_randn[i]);
+    });
+  }
 
   util::parallel_for_gpu(0, stream, batch_size, [lower=lower, scale=upper-lower, volume=m_texture, coords=(vec3f*)d_input, values=(float*)d_output] __device__ (size_t i) {
     const auto p = lower + coords[i] * scale;

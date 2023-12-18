@@ -57,10 +57,10 @@ public:
 
 struct SciVisMaterial {
 public:
-  const float ambient;
-  const float diffuse;
-  const float specular;
-  const float shininess;
+  float ambient;
+  float diffuse;
+  float specular;
+  float shininess;
 };
 
 struct TransferFunction {
@@ -134,10 +134,10 @@ struct LaunchParams {
 
   affine3f transform;
 
-  const float raymarching_shadow_sampling_scale = 2.f;
+  float raymarching_shadow_sampling_scale = 2.f;
 
   /* lights */
-  const float scivis_shading_scale = 0.95f;
+  float scivis_shading_scale = 0.95f;
 
   SciVisMaterial mat_gradient_shading{ .6f, .9f, .4f, 40.f };
   SciVisMaterial mat_full_shadow{ 1.f, .5f, .4f, 40.f };
@@ -208,8 +208,10 @@ struct TransferFunctionObject {
   DeviceTransferFunction tfn;
   cudaArray_t tfn_color_array_handler{};
   cudaArray_t tfn_alpha_array_handler{};
+  ~TransferFunctionObject() { clean(); }
   void clean();
   void set_transfer_function(const std::vector<vec3f>& c, const std::vector<vec2f>& o, const range1f& r, cudaStream_t stream);
+  void update(const TransferFunction& tfn, const range1f original_data_range, cudaStream_t stream);
 };
 
 struct VolumeObject 
