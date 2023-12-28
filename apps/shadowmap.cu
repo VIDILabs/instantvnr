@@ -34,14 +34,8 @@ typedef ovr::math::vec4i vec4i;
 
 
 // to avoid crazy formatting and indentations
-#define NAMESPACE_BEGIN    \
-    namespace ovr          \
-    {                      \
-        namespace nnvolume \
-        {
-#define NAMESPACE_END \
-    }                 \
-    }
+#define NAMESPACE_BEGIN namespace ovr { namespace nnvolume {
+#define NAMESPACE_END }}
 
 
 NAMESPACE_BEGIN

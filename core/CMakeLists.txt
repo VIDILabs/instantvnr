@@ -65,8 +65,6 @@ add_library(${target} SHARED
   renderer/method_pathtracing.h
   renderer/method_raymarching.cu
   renderer/method_raymarching.h
-  renderer/method_shadowmap.cu
-  renderer/method_shadowmap.h
   renderer/raytracing.h
   renderer/dda.h
 
