@@ -190,6 +190,7 @@ MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, Shad
   RayMarchingData params = _params;
 
   const uint32_t numPixels = (uint32_t)params.frame.size.long_product();
+  const uint32_t numPixelsPadded = util::next_multiple(numPixels, 256U);
 
   params.volume = volume;
   params.mode = mode;
@@ -197,15 +198,15 @@ MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, Shad
   if (iterative) {
     const uint32_t nSamplesPerCoord = (params.mode == GRADIENT_SHADING) ? 4 * N_ITERS : N_ITERS;
 
-    size_t nBytes = numPixels * nSamplesPerCoord * sizeof(vec4f); // inference input + output
-    nBytes += numPixels * sizeof(SampleStreamingPayload); // ray payloads
-    nBytes += numPixels * sizeof(RayMarchingIter); // iterators
+    size_t nBytes = numPixelsPadded * nSamplesPerCoord * sizeof(vec4f); // inference input + output
+    nBytes += numPixelsPadded * sizeof(SampleStreamingPayload); // ray payloads
+    nBytes += numPixelsPadded * sizeof(RayMarchingIter); // iterators
     nBytes += sizeof(uint32_t); // counter
 
     if (params.mode == SINGLE_SHADE_HEURISTIC)  {
-      nBytes += numPixels * sizeof(SingleShotPayload) * 2;
-      nBytes += numPixels * sizeof(vec4f); // shading_color
-      nBytes += numPixels * sizeof(float); // jitter_ssh
+      nBytes += numPixelsPadded * sizeof(SingleShotPayload) * 2;
+      nBytes += numPixelsPadded * sizeof(vec4f); // shading_color
+      nBytes += numPixelsPadded * sizeof(float); // jitter_ssh
     }
 
     sample_streaming_buffer.resize(nBytes, stream);
@@ -215,19 +216,19 @@ MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, Shad
     size_t offset = 0;
 
     // allocate staging data
-    params.inference_input  = define_buffer<vec3f>(begin, offset, util::next_multiple(numPixels * nSamplesPerCoord, 256U));
-    params.inference_output = define_buffer<float>(begin, offset, util::next_multiple(numPixels * nSamplesPerCoord, 256U));
+    params.inference_input  = define_buffer<vec3f>(begin, offset, util::next_multiple(numPixelsPadded * nSamplesPerCoord, 256U));
+    params.inference_output = define_buffer<float>(begin, offset, util::next_multiple(numPixelsPadded * nSamplesPerCoord, 256U));
 
     // allocate payload data 
-    params.alpha        = define_buffer<float>(begin, offset, numPixels);
-    params.color_or_org = define_buffer<vec3f>(begin, offset, numPixels);
-    params.pixel_index  = define_buffer<uint32_t>(begin, offset, numPixels);
-    params.jitter       = define_buffer<float>(begin, offset, numPixels);
+    params.alpha        = define_buffer<float>(begin, offset, numPixelsPadded);
+    params.color_or_org = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+    params.pixel_index  = define_buffer<uint32_t>(begin, offset, numPixelsPadded);
+    params.jitter       = define_buffer<float>(begin, offset, numPixelsPadded);
 #if ADAPTIVE_SAMPLING
-    params.iter_cell   = define_buffer<vec3i>(begin, offset, numPixels);
-    params.iter_t_next = define_buffer<vec3f>(begin, offset, numPixels);
+    params.iter_cell   = define_buffer<vec3i>(begin, offset, numPixelsPadded);
+    params.iter_t_next = define_buffer<vec3f>(begin, offset, numPixelsPadded);
 #endif
-    params.iter_next_cell_begin = define_buffer<float>(begin, offset, numPixels);
+    params.iter_next_cell_begin = define_buffer<float>(begin, offset, numPixelsPadded);
 
     // we also need a launch index buffer
     params.counter = define_buffer<uint32_t>(begin, offset, 1);
@@ -235,15 +236,15 @@ MethodRayMarching::render(cudaStream_t stream, const LaunchParams& _params, Shad
     // single shot payloads
     if (params.mode == SINGLE_SHADE_HEURISTIC) {
       // these payloads will be compacted in every iteration
-      params.jitter_ssh    = define_buffer<float>(begin, offset, numPixels);
-      params.inter_highest_org   = define_buffer<vec3f>(begin, offset, numPixels);
-      params.inter_highest_color = define_buffer<vec3f>(begin, offset, numPixels);
-      params.inter_highest_alpha = define_buffer<float>(begin, offset, numPixels);
+      params.jitter_ssh    = define_buffer<float>(begin, offset, numPixelsPadded);
+      params.inter_highest_org   = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+      params.inter_highest_color = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+      params.inter_highest_alpha = define_buffer<float>(begin, offset, numPixelsPadded);
       // these data are fixed output
-      params.final_highest_org   = define_buffer<vec3f>(begin, offset, numPixels);
-      params.final_highest_color = define_buffer<vec3f>(begin, offset, numPixels);
-      params.final_highest_alpha = define_buffer<float>(begin, offset, numPixels);
-      params.shading_color = define_buffer<vec4f>(begin, offset, numPixels);
+      params.final_highest_org   = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+      params.final_highest_color = define_buffer<vec3f>(begin, offset, numPixelsPadded);
+      params.final_highest_alpha = define_buffer<float>(begin, offset, numPixelsPadded);
+      params.shading_color = define_buffer<vec4f>(begin, offset, numPixelsPadded);
     }
   }
 
@@ -264,7 +265,6 @@ inline __device__ float
 sample_size_scaler(const float ss, const float t0, const float t1) {
   const int32_t N = (t1-t0) / ss + 1;
   return (t1-t0) / N;
-  // return ss;
 }
 
 template<typename F>
