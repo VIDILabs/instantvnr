@@ -595,6 +595,8 @@ void vnrRender(vnrRenderer self)
     self->framebuffer_reset = false;
   }
 
+  if (self->framebuffer_size.long_product() == 0) return;
+
   if (self->volume->isNetwork()) {
     auto& source = std::dynamic_pointer_cast<NeuralVolumeContext>(self->volume)->neural;    
     self->render.render(self->framebuffer.device_pointer(), &source, source.texture());

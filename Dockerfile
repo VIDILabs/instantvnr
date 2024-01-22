@@ -3,7 +3,7 @@
 #   xhost +si:localuser:root
 #   docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -w /instantvnr/build instantvnr
 
-FROM nvidia/cuda:11.6.2-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
 
 # Select a CUDA architecture to build. Currently we do not support multi-arch builds.
 ARG CUDA_ARCH=70
