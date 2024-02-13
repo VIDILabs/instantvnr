@@ -911,7 +911,7 @@ public:
       if (stats.local_updated) {
         stats.get_local_history(x0, y0);
       }
-      if (ImPlot::BeginPlot("##Loss Plot", ImVec2(500,150), ImPlotFlags_AntiAliased | ImPlotFlags_NoFrame)) {
+      if (ImPlot::BeginPlot("##Loss Plot", ImVec2(500,150), ImPlotFlags_NoFrame)) {
         ImPlot::SetupAxes("Loss History", "Loss", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
         ImPlot::SetupLegend(ImPlotLocation_East, ImPlotLegendFlags_Outside);
         ImPlot::PlotLine("Loss", x0.data(), y0.data(), (int)x0.size());

@@ -422,7 +422,7 @@ public:
       ImGui::SetNextWindowPos(ImVec2(/*padding*/2.0f, 2.0f));
       ImGui::SetNextWindowSizeConstraints(ImVec2(100, 180), ImVec2(FLT_MAX, FLT_MAX));
       if (ImGui::Begin("Performance", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration)) {
-        if (ImPlot::BeginPlot("##Performance Plot", ImVec2(500,150), ImPlotFlags_AntiAliased | ImPlotFlags_NoFrame)) {
+        if (ImPlot::BeginPlot("##Performance Plot", ImVec2(500,150), ImPlotFlags_NoFrame)) {
           ImPlot::SetupAxes("frame history", "time [ms]", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
           ImPlot::PlotLine("frame time", background_fps.indices.data(), background_fps.frame_time_history.data(), (int)background_fps.frame_time_history.size());
           ImPlot::EndPlot();
