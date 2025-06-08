@@ -82,7 +82,6 @@ enum VoxelType {
 #define VIDI_VOLUME_EXTERNAL_TYPE_ENUM
 #include <vidi_volume_reader.h>
 
-
 struct DataDesc {
     int dimx = -1;
     int dimy = -1;
@@ -132,28 +131,6 @@ void dvnrLoadData(VolumeDesc_Structured& desc)
   vidi::read_volume_structured_regular(desc.filename, volume_desc, dst);
 }
 
-
-VolumeDesc_Structured data_1atm_heatrelease()
-{
-    VolumeDesc_Structured desc;
-
-    desc.shape.dimx = 1152;
-    desc.shape.dimy = 320;
-    desc.shape.dimz = 853;
-
-    desc.shape.dtype = "float32";
-    desc.offset = 0;
-    desc.filename = "data/datasets/1atm.heatrelease.3x.1152.320.853f32.bin";
-    desc.is_big_endian = false;
-
-    desc.shape.min = -3290981376;
-    desc.shape.max = 0;
-
-    // tfn = "data/visualization_1atmhr.json";
-    return desc;
-}
-
-
 /*! main entry point to this example - initially optix, print hello
   world, then exit */
 extern "C" int
@@ -168,20 +145,31 @@ main(int ac, char** av)
 
   vnrJson model = vnrCreateJsonText(args.config());
 
+  // VolumeDesc_Structured desc;
+  // {
+  //   desc.shape.dimx = 1152;
+  //   desc.shape.dimy = 320;
+  //   desc.shape.dimz = 853;
+  //   desc.shape.dtype = "float32";
+  //   desc.offset = 0;
+  //   desc.filename = "data/datasets/1atm.heatrelease.3x.1152.320.853f32.bin";
+  //   desc.is_big_endian = false;
+  //   desc.shape.min = -3290981376;
+  //   desc.shape.max = 0;
+  // }
+  //
+  // const size_t size = (size_t)desc.shape.dimx*(size_t)desc.shape.dimy*(size_t)desc.shape.dimz;
+  // std::shared_ptr<char[]> buffer(new char[size * sizeof(float)]);
+  // desc.dst = (void*)buffer.get();
+  // dvnrLoadData(desc);
+  //
+  // vnrVolume simple_volume = vnrCreateSimpleVolume(desc.dst, 
+  //   vnr::vec3i(desc.shape.dimx, desc.shape.dimy, desc.shape.dimz), "float32", 
+  //   vnr::range1f(desc.shape.min, desc.shape.max),
+  //   args.training_mode()
+  // );
 
-  auto desc = data_1atm_heatrelease();
-  const size_t size = (size_t)desc.shape.dimx*(size_t)desc.shape.dimy*(size_t)desc.shape.dimz;
-  std::shared_ptr<char[]> buffer(new char[size * sizeof(float)]);
-  desc.dst = (void*)buffer.get();
-  dvnrLoadData(desc);
-
-  vnrVolume simple_volume = vnrCreateSimpleVolume(desc.dst, 
-    vnr::vec3i(desc.shape.dimx, desc.shape.dimy, desc.shape.dimz), "float32", 
-    vnr::range1f(desc.shape.min, desc.shape.max),
-    args.training_mode()
-  );
-
-  // vnrVolume simple_volume = vnrCreateSimpleVolume(args.volume(), args.training_mode());
+  vnrVolume simple_volume = vnrCreateSimpleVolume(args.volume(), args.training_mode());
   vnrVolume neural_volume;
 
 restart:
