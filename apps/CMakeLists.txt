@@ -40,15 +40,7 @@ endif()
 add_executable(view_model view_model.cpp)
 target_link_libraries(view_model PRIVATE ${target})
 
-# OVR plugin applications — only built when instantvnr is loaded as an OVR device
-if(DEFINED OVR_BUILD_MODULE_NNVOLUME)
-
-  add_executable(generate_shadow_map shadowmap.cu)
-  target_link_libraries(generate_shadow_map PUBLIC renderlib glfwApp $<TARGET_OBJECTS:device_nnvolume_array>)
-
-  if(ENABLE_IN_SHADER)
-    add_executable(vnr_int_isosurface int_isosurface.cu)
-    target_link_libraries(vnr_int_isosurface PUBLIC renderlib ${target} ${GFX_LIBRARIES})
-  endif()
-
+if(ENABLE_IN_SHADER)
+  add_executable(vnr_int_isosurface int_isosurface.cu)
+  target_link_libraries(vnr_int_isosurface PUBLIC renderlib ${target} ${GFX_LIBRARIES})
 endif()
