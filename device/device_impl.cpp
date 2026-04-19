@@ -163,7 +163,7 @@ DeviceNNVolume::Impl::commit()
   /* commit other data */
   if (parent->params.camera.update()) {
     const auto& camera = parent->params.camera.ref();
-    camera_latest = vnr::Camera{ camera.from, camera.at, camera.up };
+    camera_latest = vnr::Camera{ camera.eye, camera.at, camera.up };
     framebuffer_reset = true;
   }
 

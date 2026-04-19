@@ -41,49 +41,8 @@
 #include <vector>
 #include <ctime>
 
-// make a private version of thrust::plus to avoid template instantiation conflicts ...
-namespace {
-
-template<typename T>
-struct maximum_op {
-  typedef T first_argument_type;
-  typedef T second_argument_type;
-  typedef T result_type;
-  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? rhs : lhs; }
-}; // end maximum
-
-template<typename T>
-struct minimum_op {
-  typedef T first_argument_type;
-  typedef T second_argument_type;
-  typedef T result_type;
-  __host__ __device__ constexpr T operator()(const T& lhs, const T& rhs) const { return lhs < rhs ? lhs : rhs; }
-}; // end minimum
-
-template<typename T>
-struct plus {
-  typedef T first_argument_type;
-  typedef T second_argument_type;
-  typedef T result_type;
-  __host__ __device__ constexpr T operator()(const T &lhs, const T &rhs) const { return lhs + rhs; }
-}; // end plus
-
-template<typename T>
-T parallel_sum_gpu(const T* __restrict__ data, size_t count, cudaStream_t stream = nullptr) {
-  const auto begin = thrust::device_ptr<const T>(data);
-  const auto end = begin + count;
-  return thrust::reduce(thrust::cuda::par.on(stream), begin, end, T(0), plus<T>());
-}
-
-template<typename T>
-void parallel_minmax_gpu(const T* __restrict__ data, size_t count, T& init_min, T& init_max, cudaStream_t stream = nullptr) {
-  const auto begin = thrust::device_ptr<const T>(data);
-  const auto end = begin + count;
-  init_min = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_min, minimum_op<T>());
-  init_max = thrust::reduce(thrust::cuda::par.on(stream), begin, end, init_max, maximum_op<T>());
-}
-
-}
+// These helpers (maximum_op, minimum_op, plus, parallel_sum_gpu, parallel_minmax_gpu)
+// are now provided by evaluation_kernel.h (ovr/ovr/common/).
 
 namespace vnr {
 
