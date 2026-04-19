@@ -207,7 +207,7 @@ public:
              const float scale,
              int width,
              int height)
-    : GLFCameraWindow(title, camera.from, camera.at, camera.up, scale, width, height)
+    : GLFCameraWindow(title, camera.eye, camera.at, camera.up, scale, width, height)
     , async_rendering_loop(std::bind(&MainWindow::render_background, this))
     , renderer(renderer)
     , volume(volume)

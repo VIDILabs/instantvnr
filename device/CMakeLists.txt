@@ -32,7 +32,6 @@ add_library(device_nnvolume ${_dev_type}
   $<TARGET_OBJECTS:device_nnvolume_array>
   device.cpp
   device_impl.cpp
-  # method_shadowmap.cu  # uncomment to include shadow-map GPU code
 )
 set_target_properties(device_nnvolume
 PROPERTIES

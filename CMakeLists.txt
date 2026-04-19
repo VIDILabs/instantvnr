@@ -42,7 +42,7 @@ message(STATUS "GLIBCXX_CXX11_ABI: ${IVNR_GLIBCXX_USE_CXX11_ABI}")
 # Staging directory — all shared libs and executables land here so the install
 # step can copy them as a single package directory (same pattern as pysampler).
 ###############################################################################
-set(_ivnr_staging "${CMAKE_BINARY_DIR}/instantvnr")
+set(_ivnr_staging "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${_ivnr_staging}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${_ivnr_staging}")
 set(CMAKE_INSTALL_RPATH              "$ORIGIN")
