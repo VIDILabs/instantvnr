@@ -3,4 +3,5 @@
 	url = https://github.com/wilsonCernWq/tiny-cuda-nn.git
 [submodule "base"]
 	path = base
-	url = git@github.com:wilsonCernWq/open-volume-renderer.git
+	url = https://github.com/VIDILabs/open-volume-renderer.git
+	branch = reorg
