@@ -8,6 +8,8 @@
 #   BUILD_DIR=build ./setup_cmake.sh  # custom build directory
 #   ./setup_cmake.sh --configure   # configure only (skip build)
 #   ./setup_cmake.sh --build       # build only (skip configure)
+#   ./setup_cmake.sh --install     # install only (skip configure and build)
+#   INSTALL_PREFIX=/opt/instantvnr ./setup_cmake.sh --install
 #
 # Requires:
 #   - CUDA toolkit (nvcc in PATH or /usr/local/cuda)
@@ -19,10 +21,12 @@ BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/build}"
 
 DO_CONFIGURE=true
 DO_BUILD=true
+DO_INSTALL=false
 for arg in "$@"; do
   case "$arg" in
     --configure) DO_BUILD=false ;;
     --build)     DO_CONFIGURE=false ;;
+    --install)   DO_INSTALL=true; DO_CONFIGURE=false; DO_BUILD=false ;;
   esac
 done
 
@@ -62,5 +66,13 @@ if [[ "$DO_BUILD" == true ]]; then
     JOBS="${JOBS:-$(nproc)}"
     echo "[info] Building with $JOBS parallel jobs"
     cmake --build "$BUILD_DIR" --config Release -- -j"$JOBS"
-    echo "[info] Build complete. Outputs in $BUILD_DIR/instantvnr/"
+    echo "[info] Build complete. Outputs in $BUILD_DIR/bin/"
+fi
+
+# ── install ───────────────────────────────────────────────────────────────────
+if [[ "$DO_INSTALL" == true ]]; then
+    INSTALL_PREFIX="${INSTALL_PREFIX:-${SCRIPT_DIR}/install}"
+    echo "[info] Installing to $INSTALL_PREFIX"
+    cmake --install "$BUILD_DIR" --prefix "$INSTALL_PREFIX"
+    echo "[info] Install complete."
 fi

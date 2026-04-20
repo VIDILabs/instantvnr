@@ -2,20 +2,46 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "public", "github-actions" ]
+    branches: [main, master, public, reorg]
   pull_request:
-    branches: [ "public", "github-actions" ]
+    branches: [main, master, public, reorg]
+
+concurrency:
+  group: docker-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-
-  build:
-
+  docker:
+    name: Docker (CUDA_ARCH=${{ matrix.cuda_arch }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda_arch: ["86"]
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: 'recursive'
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag instantvnr:$(date +%s)
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - name: Build Docker image
+        run: |
+          docker build . \
+            --file Dockerfile \
+            --build-arg CUDA_ARCH=${{ matrix.cuda_arch }} \
+            --tag instantvnr:ci-${{ github.sha }}
+
+      - name: Verify install prefix exists
+        run: |
+          docker run --rm instantvnr:ci-${{ github.sha }} \
+            ls /instantvnr/install/lib/cmake/instantvnr/instantvnrConfig.cmake
