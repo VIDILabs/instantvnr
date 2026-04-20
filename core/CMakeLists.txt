@@ -79,7 +79,7 @@ if(ENABLE_IN_SHADER)
     networks/tcnn_device_network.cu
     marching_cube.cu
   )
-  target_compile_definitions(${target} PUBLIC ENABLE_IN_SHADER=1)
+  target_compile_definitions(${target} PRIVATE ENABLE_IN_SHADER=1)
 endif()
 
 if(ENABLE_OUT_OF_CORE)
@@ -105,14 +105,24 @@ PROPERTIES
 )
 
 target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_LIST_DIR})
-target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/..>)
-target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../..>)
+target_include_directories(${target} PUBLIC
+  $<BUILD_INTERFACE:${INSTANTVNR_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${INSTANTVNR_SOURCE_DIR}/base/gdt>
+  $<BUILD_INTERFACE:${INSTANTVNR_SOURCE_DIR}/base/extern>
+  $<INSTALL_INTERFACE:${INSTANTVNR_INSTALL_INCLUDEDIR}>
+)
 
 target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcudafe="--diag_suppress=177">)   # variable declared but not referenced
 target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcudafe="--diag_suppress=20044">) # extern variable treated as static
 
-target_link_libraries(${target} PRIVATE TBB::tbb curand tiny-cuda-nn)
-target_link_libraries(${target} PUBLIC gdt util tfnmodule)
+target_link_libraries(${target} PRIVATE
+  $<BUILD_INTERFACE:TBB::tbb>
+  $<BUILD_INTERFACE:curand>
+  $<BUILD_INTERFACE:tiny-cuda-nn>
+  $<BUILD_INTERFACE:gdt>
+  rendercommon
+  $<BUILD_INTERFACE:tfnmodule>
+)
 
 # GLIBCXX ABI compile definition — must match the installed PyTorch
 target_compile_definitions(${target} PUBLIC ${IVNR_GLIBCXX_CXX11_ABI})

@@ -5,8 +5,8 @@
 # ======================================================================== #
 #
 # Standalone build — OVR is an in-tree submodule, TCNN is built from source
-# via FetchContent, and the result is installed as a self-contained
-# `instantvnr` Python package directory.
+# via FetchContent, and the result can be installed as a relocatable CMake
+# package that downstream projects consume via `find_package(instantvnr)`.
 #
 
 if (POLICY CMP0048)
@@ -14,10 +14,19 @@ if (POLICY CMP0048)
 endif()
 
 cmake_minimum_required(VERSION 3.24)
-project(instantvnr LANGUAGES C CXX CUDA)
+project(instantvnr VERSION 0.0.0 LANGUAGES C CXX CUDA)
 
 # OVR cmake modules (configure_build_type, configure_cxx, configure_cuda …)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/base/cmake")
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+set(INSTANTVNR_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(INSTANTVNR_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/instantvnr")
+set(INSTANTVNR_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/instantvnr")
+# Tell the embedded OVR tree where its public headers land in this package.
+set(OVR_INSTALL_INCLUDEDIR "${INSTANTVNR_INSTALL_INCLUDEDIR}")
 
 include(configure_build_type)
 include(configure_cxx)
@@ -117,3 +126,73 @@ add_subdirectory(core)
 # co-installed and available for optional OVR integration.
 add_subdirectory(device)
 add_subdirectory(apps)
+
+add_library(instantvnr::instantvnr ALIAS instantvnr)
+
+install(TARGETS instantvnr
+  EXPORT instantvnrTargets
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
+
+install(TARGETS gdt
+  EXPORT instantvnrTargets
+)
+
+install(TARGETS tfnmodule
+  EXPORT instantvnrTargets
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
+
+# The public `instantvnr` target depends on rendercommon at runtime, so install
+# it alongside the main shared library even though it is not part of the
+# exported CMake interface.
+install(TARGETS rendercommon
+  EXPORT instantvnrTargets
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
+
+# Install the header surface required by `api.h`.
+install(FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/api.h"
+  DESTINATION "${INSTANTVNR_INSTALL_INCLUDEDIR}"
+)
+install(FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/core/mathdef.h"
+  DESTINATION "${INSTANTVNR_INSTALL_INCLUDEDIR}/core"
+)
+install(DIRECTORY
+  "${CMAKE_CURRENT_SOURCE_DIR}/base/gdt/gdt"
+  DESTINATION "${INSTANTVNR_INSTALL_INCLUDEDIR}"
+)
+install(DIRECTORY
+  "${CMAKE_CURRENT_SOURCE_DIR}/base/extern/json"
+  DESTINATION "${INSTANTVNR_INSTALL_INCLUDEDIR}"
+)
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/instantvnrConfigVersion.cmake"
+  VERSION "${PROJECT_VERSION}"
+  COMPATIBILITY SameMajorVersion
+)
+
+export(EXPORT instantvnrTargets
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/instantvnrConfig.cmake"
+  NAMESPACE instantvnr::
+)
+
+install(EXPORT instantvnrTargets
+  FILE instantvnrConfig.cmake
+  NAMESPACE instantvnr::
+  DESTINATION "${INSTANTVNR_INSTALL_CMAKEDIR}"
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/instantvnrConfigVersion.cmake"
+  DESTINATION "${INSTANTVNR_INSTALL_CMAKEDIR}"
+)

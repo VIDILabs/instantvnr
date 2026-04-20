@@ -1,16 +1,15 @@
-# Example Command to Run
-#   docker build -t instantvnr .
+# Example commands:
+#   docker build --build-arg CUDA_ARCH=86 -t instantvnr .
 #   xhost +si:localuser:root
-#   docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -w /instantvnr/build instantvnr
+#   docker run --gpus all -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -w /instantvnr/build instantvnr
 
-FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
+FROM nvidia/cuda:12.8.1-devel-ubuntu24.04
 
 # Select a CUDA architecture to build. Currently we do not support multi-arch builds.
-ARG CUDA_ARCH=70
+ARG CUDA_ARCH=90
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update 
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential mesa-utils pkg-config \
         libglx0 libglvnd0 libglvnd-dev \
         libgl1 libgl1-mesa-dev \
@@ -18,37 +17,32 @@ RUN apt-get install -y --no-install-recommends \
         libgles2 libgles2-mesa-dev \
         libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libssl-dev \
         libaio-dev \
-        wget git ninja-build imagemagick
-# RUN rm -rf /var/lib/apt/lists/*
+        wget git ninja-build imagemagick ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
 ADD https://raw.githubusercontent.com/NVlabs/nvdiffrec/main/docker/10_nvidia.json \
     /usr/share/glvnd/egl_vendor.d/10_nvidia.json
 
-# Install cmake
-RUN wget -qO- "https://cmake.org/files/v3.23/cmake-3.23.2-linux-x86_64.tar.gz" | tar --strip-components=1 -xz -C /usr/local
+# Install CMake (3.24+ required by the standalone build).
+RUN wget -qO- "https://cmake.org/files/v3.28/cmake-3.28.3-linux-x86_64.tar.gz" | tar --strip-components=1 -xz -C /usr/local
 
-# Install tbb
+# Install TBB
 RUN wget -qO- "https://github.com/oneapi-src/oneTBB/releases/download/v2021.9.0/oneapi-tbb-2021.9.0-lin.tgz" | tar --strip-components=1 -xz -C /usr/local
 
-# Create a superbuild
-RUN git clone --recursive https://github.com/VIDILabs/open-volume-renderer.git /instantvnr/ovr
-# RUN git clone --recursive https://github.com/VIDILabs/instantvnr.git /instantvnr/source
-COPY . /instantvnr/source
-RUN ln -s /instantvnr/source /instantvnr/ovr/projects/instantvnr
+WORKDIR /instantvnr
+COPY . /instantvnr
 
-# Config and build
-RUN mkdir -p /instantvnr/build
-RUN cmake -S /instantvnr/ovr -B/instantvnr/build -GNinja \
-    -DOptiX_INSTALL_DIR=/instantvnr/ovr/github-actions/optix-cmake-github-actions/NVIDIA-OptiX-SDK-7.3.0-linux64-x86_64 \
-    -DGDT_CUDA_ARCHITECTURES=${CUDA_ARCH} \
-    -DOVR_BUILD_MODULE_NNVOLUME=ON \
-    -DOVR_BUILD_DEVICE_OSPRAY=OFF \
-    -DOVR_BUILD_DEVICE_OPTIX7=ON
-RUN cmake --build /instantvnr/build --config Release --parallel 16
+# Configure and build the standalone project directly from this repository.
+RUN SM=${CUDA_ARCH} BUILD_DIR=/instantvnr/build bash ./setup_cmake.sh
 
-RUN ln -s /instantvnr/ovr/data /instantvnr/build/data
-RUN cp /instantvnr/source/example-model.json /instantvnr/build/example-model.json
+RUN BUILD_DIR=/instantvnr/build INSTALL_PREFIX=/instantvnr/install \
+    bash ./setup_cmake.sh --install
 
-WORKDIR [ '/instantvnr/build' ]
+RUN ln -s /instantvnr/data /instantvnr/build/data \
+    && cp /instantvnr/example-model.json /instantvnr/build/example-model.json
+
+ENV CMAKE_PREFIX_PATH=/instantvnr/install
+
+WORKDIR /instantvnr/build

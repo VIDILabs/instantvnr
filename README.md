@@ -42,7 +42,7 @@ cd ..
 # Build
 mkdir build
 cd build
-cmake .. -DGDT_CUDA_ARCHITECTURES=86 -DOVR_BUILD_MODULE_NNVOLUME=ON -DOVR_BUILD_DEVICE_OSPRAY=OFF -DOVR_BUILD_DEVICE_OPTIX7=OFF
+cmake .. -DCMAKE_CUDA_ARCHITECTURES=86 -DOVR_BUILD_MODULE_NNVOLUME=ON -DOVR_BUILD_DEVICE_OSPRAY=OFF -DOVR_BUILD_DEVICE_OPTIX7=OFF
 cmake --build . --config Release --parallel 16
 
 # In the binary output directory, setup symbolic links to the data folder
@@ -71,6 +71,29 @@ docker run --gpus device=0 --runtime=nvidia -ti  --rm -e DISPLAY -v /tmp/.X11-un
 ```
 
 You can also directly execute apps through the docker container
+
+#### Using from Another CMake Project
+
+You can also install `instantvnr` as a CMake package and consume it from
+another repository:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
+cmake --build build --parallel
+cmake --install build --prefix /path/to/instantvnr-install
+```
+
+Then in the downstream project's `CMakeLists.txt`:
+
+```cmake
+find_package(instantvnr CONFIG REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE instantvnr::instantvnr)
+```
+
+The exported target preserves the current public include layout, so downstream
+code can continue to include headers such as `#include <api.h>`.
 
 
 ### Citation
