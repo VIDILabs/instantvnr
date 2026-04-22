@@ -21,6 +21,34 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  renderer.h
+//
+//  `RenderAPI` - host-side front-end to the CUDA rendering kernels. It
+//  bundles:
+//
+//    * `params`                   `LaunchParams` blob passed to every
+//                                 kernel (camera, lights, frame index, ...).
+//    * `self`                     `DeviceVolume` describing the volume
+//                                 being rendered (grid dims, macrocells,
+//                                 bbox, stepping, ...).
+//    * `program_raymarching`      ray marching method dispatcher
+//                                 (`renderer/method_raymarching.*`).
+//    * `program_pathtracing`      volumetric path tracing dispatcher
+//                                 (`renderer/method_pathtracing.*`).
+//    * `framebuffer_accumulation` per-pixel accumulator for progressive
+//                                 refinement.
+//
+//  Usage:
+//      api.init(...);                           // allocate state once
+//      api.update(mode, tfn, rate, scale, ...); // update per frame
+//      api.render(fb, neuralnet, grid_tex);     // launch kernels
+//
+//  The active `mode` picks one of the `vnrRenderMode` values defined in
+//  `api.h`; see the matrix at the top of `renderer/method_raymarching.cu`
+//  and `renderer/method_pathtracing.cu` for how each mode is implemented.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "api.h"

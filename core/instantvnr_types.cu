@@ -1,3 +1,12 @@
+// ----------------------------------------------------------------------------
+//  instantvnr_types.cu
+//
+//  Implementation of `TransferFunctionObject`: allocates the two 1D
+//  cudaArrays (RGB colors and opacities) that back `DeviceTransferFunction`,
+//  uploads host-side data on `update()` / `set_transfer_function()`, and
+//  releases resources on destruction via `clean()`.
+// ----------------------------------------------------------------------------
+
 #include "instantvnr_types.h"
 
 INSTANT_VNR_NAMESPACE_BEGIN

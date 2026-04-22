@@ -14,6 +14,20 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  device_nnvolume_array.h
+//
+//  CUDA array / texture helpers local to the OVR plugin. Provides
+//  `ArrayCUDA`, `Array3DScalarCUDA`, and factory functions
+//  (`CreateArray1DScalarCUDA`, `CreateArray1DFloat4CUDA`,
+//  `CreateArray3DScalarCUDA`) that turn OVR's host-side scene arrays into
+//  GPU-resident textures suitable for `vnr::RenderAPI`.
+//
+//  Conceptually parallel to `core/array.h`, but lives in `ovr::nnvolume`
+//  so the plugin can link to OVR's `Scene` types without dragging in the
+//  `vnr` namespace unnecessarily.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "ovr/scene.h"

@@ -5,6 +5,31 @@
 //. Licensed under the MIT License                                           //
 //.                                                                          //
 //. ======================================================================== //
+
+// ----------------------------------------------------------------------------
+//  view_model.cpp  -->  binary `view_model`
+//
+//  Command-line inspector for a trained neural-volume binary JSON (typically
+//  the `params.json` produced by `vnr_cmd_train`).
+//
+//    * Dumps volume dimensions, macrocell metadata (size, spacing, byte
+//      count, GT-vs-inference flag), model sub-tree (the TCNN config), and
+//      the size of the parameter blob.
+//    * With `--groundtruth <scene.json>`, rebuilds the neural volume against
+//      a ground-truth simple volume and prints PSNR and SSIM.
+//    * With `--correct --dims (x,y,z)`, injects `volume.dims` into the JSON
+//      root and writes the patched file as `params-corrected.json` (used to
+//      repair legacy `params.json` files that were serialized before the
+//      dims field was added).
+//
+//  CLI:
+//    positional  <volume>            path to the neural JSON (required)
+//    --groundtruth <file>            optional GT scene for metrics
+//    --dims        <(x,y,z)>         used with `--correct` to patch the JSON
+//    --correct                       write params-corrected.json
+//    -h, --help
+// ----------------------------------------------------------------------------
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif

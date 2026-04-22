@@ -1,3 +1,16 @@
+// ----------------------------------------------------------------------------
+//  fvsrn_network.h
+//
+//  Alternative network backend (fV-SRN, "fast volume scene representation
+//  network") selected when the library is built with `ENABLE_FVSRN=ON`.
+//  Implements the same `AbstractNetwork` contract as `TcnnNetwork` so
+//  `NeuralVolume` can be swapped between backends at construction time.
+//
+//  Enabling fV-SRN forces `DISABLE_ADAPTIVE_SAMPLING=ON` and
+//  `KERNEL_DOUBLE_PRECISION=1` (see `core/CMakeLists.txt`) because the
+//  fV-SRN kernels do not support macrocell acceleration.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "tcnn_network.h"

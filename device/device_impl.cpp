@@ -21,6 +21,16 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  device_impl.cpp
+//
+//  Implementation of `DeviceNNVolume::Impl::init / commit / render`. The
+//  render path forwards to `vnr::RenderAPI::render(...)` with a null
+//  `NeuralVolume*`, so the plugin currently handles structured grids
+//  sampled via `volume_data`; the commented-out blocks below sketch the
+//  neural-volume extension that has not yet been wired into the plugin.
+// ----------------------------------------------------------------------------
+
 #include "device_impl.h"
 #include "device_nnvolume_array.h"
 
@@ -82,7 +92,7 @@ DeviceNNVolume::Impl::init(int argc, const char** argv, DeviceNNVolume* p)
   std::cout << "[nncache] volume range = " << volume_data.lower.v << " " << volume_data.upper.v << std::endl;
 
   // --------------------------------------------
-  // set macrcell
+  // set macrocell
   // --------------------------------------------
   macrocell.set_shape(volume_data.dims);
   macrocell.allocate();
@@ -217,4 +227,4 @@ DeviceNNVolume::Impl::commit()
   }
 }
 
-} // namespace ovr
+} // namespace ovr::nnvolume

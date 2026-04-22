@@ -5,6 +5,33 @@
 //. Licensed under the MIT License                                           //
 //.                                                                          //
 //. ======================================================================== //
+
+// ----------------------------------------------------------------------------
+//  tcnn_device_api.h
+//
+//  Device-side inference contract used by the in-shader render modes
+//  (`VNR_*_IN_SHADER`) and by `marching_cube.cu`.
+//
+//    * `EncoderCtx<T, N_POS_DIMS, N_FEATURES_PER_LEVEL, HASH_TYPE>`
+//        Snapshot of a tiny-cuda-nn `GridEncodingTemplated` in a form that
+//        can be read from inside a CUDA kernel (grid pointer, offset
+//        table, base resolution, max level, ...). Expensive to copy -
+//        always pass by reference.
+//    * `encode(ctx, level, input, output)`
+//        Device entry point that evaluates a single hash-grid level for a
+//        single position. Defined in `tcnn_device_encoder.cu`.
+//    * `NetworkCtx` and `DeviceNeuralVolume<...>::sample(pos)`
+//        Fused encoder + fully-fused MLP forward pass performed inside a
+//        rendering kernel. Uses WMMA (tensor cores) via the helpers in
+//        `tcnn_threadblock.h`; requires a thread block shaped to match the
+//        MLP width and a warp-aligned shared-memory buffer for the
+//        intermediate activations.
+//    * `TcnnDeviceVolume` - convenience alias of `DeviceNeuralVolume` with
+//        the default template arguments.
+//
+//  Only compiles when `ENABLE_IN_SHADER` is defined.
+// ----------------------------------------------------------------------------
+
 #pragma once
 #ifndef TCNN_DEVICE_API_H
 #define TCNN_DEVICE_API_H

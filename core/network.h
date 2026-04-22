@@ -6,6 +6,33 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  network.h
+//
+//  `NeuralVolume` - trainable/inferable implicit volume representation,
+//  implemented via the pimpl idiom in `network.cu`. Backed by tiny-cuda-nn
+//  by default (HashGrid encoding + FullyFused MLP); when built with
+//  `ENABLE_FVSRN`, the same interface can also delegate to the fV-SRN
+//  backend under `core/networks/fvsrn_*`.
+//
+//  Conceptually it implements the `VolumeObject` abstract interface from
+//  `instantvnr_types.h`, so a `NeuralVolume` can be rendered by the same
+//  `RenderAPI` pipeline as a `SimpleVolume` (see `sampler.h`).
+//
+//  Key responsibilities:
+//    * Wire up the training data sampler (`SimpleVolume*` reference or
+//      self-supervised grid sampling) and the TCNN/fV-SRN network.
+//    * Run training (`train`), streaming inference (`inference`,
+//      `decode_progressive`), or one-shot decode into a dense 3D texture
+//      (`decode_volume`, `save_inference_volume`).
+//    * Expose macrocell acceleration state consistent with the trained
+//      network (either copied from the reference volume's macrocells or
+//      built from inference).
+//    * Serialize weights + macrocell + volume metadata to/from the compact
+//      binary JSON format used by `params.json`.
+//    * Report quality metrics (MSE / PSNR / SSIM) vs. a reference volume.
+// ----------------------------------------------------------------------------
+
 #ifndef NEURAL_VOLUME_HPP
 #define NEURAL_VOLUME_HPP
 

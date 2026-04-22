@@ -7,6 +7,21 @@
 # Licensed under the Apache License, Version 2.0                           #
 # ======================================================================== #
 
+# Example/driver programs.
+#
+#   target                source                 feature flag
+#   --------------------  ---------------------  --------------------
+#   vnr_int_dual          int_dual_volume.cpp    ENABLE_OPENGL
+#   vnr_int_single        int_volume.cpp         ENABLE_OPENGL
+#   vnr_int_isosurface    int_isosurface.cu      ENABLE_IN_SHADER (+ renderlib)
+#   vnr_cmd_train         batch_trainer.cpp      always
+#   vnr_cmd_render        batch_renderer.cpp     always
+#   vnr_cmd_isosurface    batch_isosurface.cpp   ENABLE_IN_SHADER
+#   view_model            view_model.cpp         always
+#
+# All targets link the `instantvnr` core library (variable `target`);
+# OpenGL targets also pull in ${GFX_LIBRARIES} from OVR.
+
 set(CMAKE_CXX_STANDARD  17)
 set(CMAKE_CUDA_STANDARD 17)
 

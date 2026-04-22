@@ -6,16 +6,43 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  method_pathtracing.cu
+//
+//  CUDA volumetric path tracer. `vnrRenderMode` values 13-15 select between
+//  three ways of sampling the neural volume:
+//
+//    VNR_PATHTRACING_DECODING          - run inference once to fill a CUDA
+//                                         3D texture, then path-trace that
+//                                         texture like a SimpleVolume.
+//    VNR_PATHTRACING_SAMPLE_STREAMING  - persistent-threads scheme that
+//                                         batches sample coords, returns to
+//                                         the host for a TCNN sweep, then
+//                                         resumes.
+//    VNR_PATHTRACING_IN_SHADER         - fused inference inside the kernel
+//                                         (requires ENABLE_IN_SHADER; with
+//                                         ENABLE_FVSRN the same path can
+//                                         call the fV-SRN backend).
+//
+//  When `ADAPTIVE_SAMPLING=1`, macrocell min/max feed delta tracking so
+//  the majorant can vary across the volume (`VARYING_MAJORANT`) and the
+//  iterator-based delta tracker is used (`USE_DELTA_TRACKING_ITER`).
+//  `PHASE(a) = 0.6 * a` is the isotropic-ish phase function; Russian
+//  roulette kicks in after `russian_roulette_length` scatter events.
+// ----------------------------------------------------------------------------
+
 #include "method_pathtracing.h"
 #include "raytracing.h"
 #include "dda.h"
 
 #include "../network.h"
 #ifdef ENABLE_IN_SHADER
+// In-shader TCNN inference; used by VNR_PATHTRACING_IN_SHADER.
 #include "../networks/tcnn_device_api.h"
 #endif
 
 #if defined(ENABLE_IN_SHADER) && defined(ENABLE_FVSRN)
+// Optional fV-SRN backend reachable from the same in-shader entry point.
 #include "../networks/fvsrn_device_api.h"
 #endif
 
@@ -26,6 +53,7 @@
 #endif
 
 #if ADAPTIVE_SAMPLING
+// Macrocell-based majorants + stepped delta tracking.
 #define VARYING_MAJORANT 1
 #define USE_DELTA_TRACKING_ITER 1
 #endif

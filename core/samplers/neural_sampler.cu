@@ -1,3 +1,13 @@
+// ----------------------------------------------------------------------------
+//  neural_sampler.cu
+//
+//  CUDA side of the training-data pipeline: curand-/TCNN-backed random
+//  buffers (`random_dbuffer_uniform`, `random_dbuffer_uint32/uint64`),
+//  thrust reductions used while streaming in voxels, and the
+//  `generate_grid_coords` kernel that builds a dense batch of
+//  `[0,1]^3` coordinates for a regular subgrid.
+// ----------------------------------------------------------------------------
+
 #include "neural_sampler.h"
 
 #include <tiny-cuda-nn/random.h>

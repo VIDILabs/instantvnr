@@ -1,3 +1,25 @@
+// ----------------------------------------------------------------------------
+//  sampler.cu
+//
+//  Concrete implementations for `SamplerAPI::create` (string-dispatched
+//  factory) and `SimpleVolume::load`. The factory accepts:
+//
+//    "GPU" / "CUDA"                    - `CudaSampler_TimeVarying` over a
+//                                        CUDA 3D texture (default path).
+//    "NOTHING"                         - `DummySampler` (no data, used to
+//                                        shape-check the network).
+//    "VIRTUAL_MEMORY"                  - host mmap + on-demand upload
+//                                        (requires ENABLE_OUT_OF_CORE).
+//    "OUT_OF_CORE"                     - AIO-backed streaming sampler
+//                                        (requires ENABLE_OUT_OF_CORE).
+//    "OPENVKL" / "OPENVKL_GT_*"        - OpenVKL-backed sampling, with
+//                                        optional ground-truth grid
+//                                        (requires ENABLE_OPENVKL).
+//    "OPENVKL_IRREGULAR" / "OPENVKL_VDB*"
+//                                      - OpenVKL unstructured / VDB
+//                                        datasets.
+// ----------------------------------------------------------------------------
+
 #include "sampler.h"
 #include "samplers/neural_sampler.h"
 

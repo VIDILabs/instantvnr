@@ -6,9 +6,19 @@
 //.                                                                          //
 //. ======================================================================== //
 
-/**
- * Geometry Types Defined by the Application
- */
+// ----------------------------------------------------------------------------
+//  mathdef.h
+//
+//  Re-exports the gdt (Ingo Wald's CPU/CUDA math library) types under the
+//  `vnr` namespace - `vec2f`, `vec3f`, `affine3f`, `box3f`, etc. - plus
+//  the scalar `ValueType` enum used everywhere raw voxel data is stored.
+//  `value_type_size(type)` returns the byte width, and `value_type<T>()` /
+//  `value_type("float32")` map between C++ types, strings, and the enum.
+//
+//  This is the only core/ header pulled in by the public `api.h`, so it is
+//  intentionally light on includes.
+// ----------------------------------------------------------------------------
+
 #ifndef OVR_MATHDEF_H
 #define OVR_MATHDEF_H
 

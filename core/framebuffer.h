@@ -1,3 +1,16 @@
+// ----------------------------------------------------------------------------
+//  framebuffer.h
+//
+//  `FrameBufferTemplate<T>` - double-buffered CUDA + host framebuffer. Each
+//  of the two `BufferObject`s owns its own CUDA stream; `safe_swap()`
+//  synchronizes the current stream and flips to the other so that the
+//  renderer can issue the next frame while the previous one is still being
+//  downloaded to host memory.
+//
+//  `using FrameBuffer = FrameBufferTemplate<vec4f>` is the concrete RGBA
+//  framebuffer used throughout the codebase.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "core/instantvnr_types.h"

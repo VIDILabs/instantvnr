@@ -1,3 +1,19 @@
+// ----------------------------------------------------------------------------
+//  serializer.h
+//
+//  Scene-JSON loaders. Each `create_json_*_stringify(root, ...)` function
+//  reads from an already-parsed nlohmann::json root; the matching
+//  `create_json_*(filename, ...)` inline wrapper opens the file on disk
+//  and forwards.
+//
+//    create_json_scene   -> MultiVolume + TransferFunction + Camera
+//    create_json_tfn     -> TransferFunction
+//    create_json_volume  -> MultiVolume
+//    create_json_camera  -> Camera
+//
+//  Scene schema is documented in `base/data/configs/README.md`.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "core/instantvnr_types.h"

@@ -30,7 +30,34 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
-// This file creates a renderer that only does rendering.
+// ----------------------------------------------------------------------------
+//  int_isosurface.cu  -->  binary `vnr_int_isosurface`
+//
+//  Interactive isosurface viewer. Combines GPU marching cubes from the core
+//  library (`vnrMarchingCube`) with an OVR OSPRay renderer: the extracted
+//  mesh is uploaded as an `ovr::scene::Geometry::TRIANGLES_GEOMETRY` and
+//  rendered with either ray marching or path tracing, with an ImGui
+//  isovalue slider that rebuilds the mesh on drag.
+//
+//  Requires the library to be built with `ENABLE_IN_SHADER=ON` (marching
+//  cubes over a neural volume needs in-shader inference) and links against
+//  OVR's `renderlib`.
+//
+//  CLI:
+//    positional `<scene>`         (parsed but the code path that loads a
+//                                  full scene from this file is commented
+//                                  out in main; a hand-constructed scene is
+//                                  used instead.)
+//    XOR    --simple-volume / --neural-volume <file>
+//    REQ    --iso | --isovalue <float>
+//           -h, --help
+//
+//  `extract_isosurface(volume, isovalue, geometry)` is the key helper: it
+//  runs `vnrMarchingCube` on the device, computes per-triangle normals in a
+//  `parallel_for_gpu`, downloads the triangle soup to the host, and fills
+//  `geometry` with vertex/index/normal/color arrays. Returns `false` if the
+//  chosen isovalue produces no geometry.
+// ----------------------------------------------------------------------------
 
 // clang-format off
 #include <glfwapp/GLFWApp.h>
@@ -457,7 +484,6 @@ public:
   }
 };
 
-/*! main entry point to this example - initially optix, print hello world, then exit */
 int
 main(int ac, const char** av)
 {

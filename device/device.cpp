@@ -1,3 +1,12 @@
+// ----------------------------------------------------------------------------
+//  device.cpp
+//
+//  Thin forwarders from `DeviceNNVolume` to `DeviceNNVolume::Impl` plus
+//  the `OVR_REGISTER_OBJECT` line at the bottom of the file, which exposes
+//  the class to OVR's dynamic object factory under the name `"nnvolume"`.
+//  Host applications request it with `ovr::create_renderer("nnvolume")`.
+// ----------------------------------------------------------------------------
+
 #include "device.h"
 #include "device_impl.h"
 

@@ -6,6 +6,25 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  batch_isosurface.cpp  -->  binary `vnr_cmd_isosurface`
+//
+//  Headless marching-cubes extractor. Loads either a ground-truth volume
+//  (`--simple-volume <scene.json>`) or a pre-trained neural volume
+//  (`--neural-volume <params.json>`), runs `vnrMarchingCube` at the given
+//  `--iso` / `--isovalue`, writes the result to `isosurface.obj` in the
+//  current working directory, and exits.
+//
+//  CLI (all via args.hxx):
+//    XOR    --simple-volume  <file>
+//           --neural-volume  <file>
+//    REQ    --iso | --isovalue <float>
+//           -h, --help
+//
+//  Requires the library to be built with `ENABLE_IN_SHADER=ON` (marching
+//  cubes over a neural volume uses the in-shader inference path).
+// ----------------------------------------------------------------------------
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -48,8 +67,6 @@ public:
   }
 };
 
-/*! main entry point to this example - initially optix, print hello
-  world, then exit */
 extern "C" int
 main(int ac, char** av)
 {

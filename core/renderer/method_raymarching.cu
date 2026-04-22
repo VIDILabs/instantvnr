@@ -6,16 +6,56 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  method_raymarching.cu
+//
+//  CUDA ray marching kernels. `vnrRenderMode` values 0-12 (see api.h) pick
+//  one point in a 4x3 matrix of (shading mode) x (how the neural volume is
+//  sampled):
+//
+//                | Decoding path          | Sample streaming   | In shader
+//    ------------+------------------------+--------------------+------------------
+//    OptiX       | VNR_OPTIX_*  (deprecated; no longer wired up; still accepted
+//                |               as an `rendering_mode` int and logged)
+//    No shading  | VNR_RAYMARCHING_       | ..._SAMPLE_         | ..._IN_SHADER
+//                | NO_SHADING_DECODING    |    STREAMING        |
+//    Gradient    | VNR_RAYMARCHING_       | ..._SAMPLE_         | ..._IN_SHADER
+//                | GRADIENT_SHADING_      |    STREAMING        |
+//                | DECODING               |                     |
+//    Single-shade| VNR_RAYMARCHING_       | ..._SAMPLE_         | ..._IN_SHADER
+//    heuristic   | SINGLE_SHADE_HEURISTIC_|    STREAMING        |
+//                | DECODING               |                     |
+//
+//  Decoding       - the neural volume is first decoded into a dense CUDA 3D
+//                   texture and the kernels then sample that texture, just
+//                   like they would for a `SimpleVolume`.
+//  Sample streaming - the kernel collects sample coordinates into a device
+//                   buffer, the host launches a TCNN inference sweep on
+//                   that buffer, then the kernel resumes with the returned
+//                   values. Requires `iterative` persistent threads.
+//  In shader      - the kernel calls fused TCNN inference directly from
+//                   inside the ray-march (requires `ENABLE_IN_SHADER`).
+//                   When `ENABLE_FVSRN` is also set, the same in-shader
+//                   branch can target the fV-SRN backend instead.
+//
+//  `ADAPTIVE_SAMPLING` (defined by CMake, 0 or 1) toggles macrocell-based
+//  empty-space skipping and adaptive step lengths. With
+//  `DISABLE_ADAPTIVE_SAMPLING=ON` the renderer falls back to fixed-step
+//  ray marching.
+// ----------------------------------------------------------------------------
+
 #include "method_raymarching.h"
 #include "raytracing.h"
 #include "dda.h"
 
 #include "../network.h"
 #ifdef ENABLE_IN_SHADER
+// In-shader TCNN inference; used by the `*_IN_SHADER` render modes.
 #include "../networks/tcnn_device_api.h"
 #endif
 
 #if defined(ENABLE_IN_SHADER) && defined(ENABLE_FVSRN)
+// Optional fV-SRN backend exposed through the same in-shader entry points.
 #include "../networks/fvsrn_device_api.h"
 #endif
 

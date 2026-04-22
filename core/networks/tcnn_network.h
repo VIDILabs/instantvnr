@@ -1,3 +1,24 @@
+// ----------------------------------------------------------------------------
+//  tcnn_network.h
+//
+//  Host-side tiny-cuda-nn wrapper:
+//
+//    * `AbstractNetwork`               pure virtual interface used by
+//                                      `NeuralVolume`: train step, forward
+//                                      pass, (de)serialize, memory stats.
+//                                      Implemented by `TcnnNetwork` and,
+//                                      when `ENABLE_FVSRN`, `FvsrnNetwork`.
+//    * `TcnnNetwork<INPUT, OUTPUT>`    default instantiation with
+//                                      INPUT=VNR_INPUT_DIMS (3) and
+//                                      OUTPUT=VNR_OUTPUT_DIMS (1). Wraps a
+//                                      `tcnn::NetworkWithInputEncoding`
+//                                      (HashGrid + FullyFused MLP) and a
+//                                      `tcnn::Trainer`.
+//
+//  The JSON config consumed here is exactly what `example-model.json`
+//  contains: `encoding`, `network`, `optimizer`, `loss`.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include <tiny-cuda-nn/config.h>

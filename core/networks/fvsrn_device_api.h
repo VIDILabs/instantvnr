@@ -5,6 +5,22 @@
 //. Licensed under the MIT License                                           //
 //.                                                                          //
 //. ======================================================================== //
+
+// ----------------------------------------------------------------------------
+//  fvsrn_device_api.h
+//
+//  Device-side wrapper for the fV-SRN forward kernel. `FvsrnDeviceVolume`
+//  mirrors the in-shader contract offered by `TcnnDeviceVolume`:
+//
+//    * `init()`                 per-block warm-up (shared-memory setup).
+//    * `sample(float3 pos)`     single-point inference inside a kernel.
+//    * `launch(kernel, ...)`    host-side helper to dispatch a kernel
+//                               whose body calls `sample()`.
+//
+//  Consumed by `method_raymarching.cu` / `method_pathtracing.cu` when
+//  both `ENABLE_IN_SHADER` and `ENABLE_FVSRN` are defined.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include <cuda_runtime.h>

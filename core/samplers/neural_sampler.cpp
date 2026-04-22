@@ -1,3 +1,34 @@
+// ----------------------------------------------------------------------------
+//  neural_sampler.cpp
+//
+//  Host-side implementations of every `SamplerAPI` variant declared in
+//  `neural_sampler.h` plus the training-data I/O pipeline. The interesting
+//  pieces:
+//
+//    * Memory-mapped volume reader        uses `vidi::FileMap` /
+//                                         `filemap_random_read[_async]`
+//                                         (backed by mmap on POSIX) to
+//                                         serve voxels from disk without
+//                                         loading the whole volume into
+//                                         RAM.
+//    * `RandomBuffer` + AIO streamer      (ENABLE_OUT_OF_CORE + Linux)
+//                                         uses `libaio` (`io_setup` /
+//                                         `io_submit` / `io_getevents`) to
+//                                         prefetch randomized blocks of
+//                                         voxels into a GPU-visible
+//                                         staging buffer in the background
+//                                         while training consumes the
+//                                         previous batch. A second path
+//                                         guarded by `AIO_INTEL` targets
+//                                         POSIX aio for non-Linux hosts.
+//    * OpenVKL samplers                   wrap a VKL volume with either
+//                                         live sampling, a retained dense
+//                                         grid (`_WithGroundTruthData`),
+//                                         or downsampled ground truth.
+//
+//  Only the classes guarded by a matching feature flag are compiled in.
+// ----------------------------------------------------------------------------
+
 #include "neural_sampler.h"
 
 namespace vidi {
@@ -482,6 +513,9 @@ private:
   uint64_t n_streams;
 
 public:
+  // Prepare the async I/O context.  On Linux we use `io_setup` from libaio
+  // to keep `n_concurrent_streams` pread requests in flight; on POSIX aio
+  // systems we prepopulate `aiocb` control blocks instead.
   void init(uint64_t n_concurrent_streams) 
   {
 #ifdef AIO_LINUX
@@ -1253,6 +1287,9 @@ VirtualMemorySampler::VirtualMemorySampler(const MultiVolume& desc)
   const auto& file = desc.data[0];
   assert(file.bigendian == false && "only support small endian");
   m_offset = file.offset;
+  // Synchronous memory-mapped read handle: the kernel maps the volume file
+  // lazily and we pay only for the pages actually touched by
+  // `filemap_random_read` below.
   m_reader = vidi::filemap_read_create(file.filename);
 
   m_fdims = vec3f(m_dims);

@@ -6,6 +6,26 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  api.cpp
+//
+//  Thin implementation of the C-style `vnr*` API declared in `api.h`. Each
+//  function dispatches into the matching `core/` subsystem:
+//
+//    Cameras / JSON I/O - serializer + nlohmann::json.
+//    Simple volume      - core/sampler.* + core/samplers/*   (loaders).
+//    Neural volume      - core/network.* + core/networks/*   (training /
+//                         inference via tiny-cuda-nn or fV-SRN).
+//    Transfer function  - core/instantvnr_types.* (TransferFunctionObject).
+//    Renderer           - core/renderer.* + core/renderer/*  (mode dispatch,
+//                         framebuffer accumulation).
+//    Marching cubes     - core/marching_cube.* (via external declarations).
+//
+//  `vnrCompilationStatus()` at the bottom of this file is the canonical
+//  runtime dump of the active compile-time feature flags (adaptive sampling,
+//  fV-SRN, in-shader TCNN, OpenVKL, out-of-core sampler).
+// ----------------------------------------------------------------------------
+
 #include "api_internal.h"
 
 // ------------------------------------------------------------------

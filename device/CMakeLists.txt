@@ -1,8 +1,8 @@
 ################
-# device_nnvolume_array — OBJECT library used by the shadow-map app and as a
-# build unit for the device plugin.  Standalone builds still compile it so the
-# full feature set is preserved; it is only *linked* when OVR_BUILD_MODULE_NNVOLUME
-# is defined (i.e., when building as part of the OVR plugin framework).
+# device_nnvolume_array — OBJECT library with CUDA array / texture helpers.
+# Historically shared with a shadow-map application outside this tree; kept as
+# a compile unit so the feature set is preserved even when only the OVR plugin
+# below is actually linked against it.
 ################
 add_library(device_nnvolume_array OBJECT
   device_nnvolume_array.cpp

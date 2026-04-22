@@ -1,3 +1,14 @@
+// ----------------------------------------------------------------------------
+//  method_raymarching.h
+//
+//  `MethodRayMarching` dispatcher. Takes a `ShadingMode`
+//  (NO_SHADING / GRADIENT_SHADING / SINGLE_SHADE_HEURISTIC / SHADOW) plus a
+//  `DeviceVolume` and optional `NeuralVolume`, and launches the right
+//  kernel in `method_raymarching.cu`. The `iterative` flag switches between
+//  a single-kernel implementation and an N-iteration persistent-threads
+//  implementation used for large batches of sample-streaming queries.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "../instantvnr_types.h"

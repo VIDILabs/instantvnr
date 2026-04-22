@@ -7,6 +7,21 @@
 # Licensed under the Apache License, Version 2.0                           #
 # ======================================================================== #
 
+# Builds the `instantvnr` shared library. Feature flags read by this file:
+#
+#   MACROCELL_SIZE_MIP         macrocell edge = 1 << MIP voxels (default 4)
+#   ENABLE_IN_SHADER           +networks/tcnn_device_*.cu + marching_cube.cu,
+#                              defines ENABLE_IN_SHADER=1
+#   ENABLE_OUT_OF_CORE         defines ENABLE_OUT_OF_CORE=1, links libaio on Linux
+#   ENABLE_FVSRN               +networks/fvsrn_network.cu; forces
+#                              DISABLE_ADAPTIVE_SAMPLING=ON and sets
+#                              KERNEL_DOUBLE_PRECISION=1
+#   DISABLE_ADAPTIVE_SAMPLING  ADAPTIVE_SAMPLING=0 when ON, else 1
+#   ENABLE_LOGGING             defines ENABLE_LOGGING=1
+#   openvkl::openvkl           when both openvkl targets exist, defines
+#                              ENABLE_OPENVKL=1 and links them
+#   IVNR_GLIBCXX_CXX11_ABI     compile define forwarded to downstream targets
+
 set(CMAKE_CXX_STANDARD  17)
 set(CMAKE_CUDA_STANDARD 17)
 

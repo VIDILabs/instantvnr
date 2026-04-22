@@ -1,3 +1,25 @@
+// ----------------------------------------------------------------------------
+//  cmdline.h
+//
+//  Shared command-line helpers used by every binary under `apps/`.
+//
+//    * `args_impl::Vec3fReader` / `Vec3iReader` - args.hxx readers that accept
+//      a parenthesized comma-separated triple, e.g. `(1.0,2.0,3.0)`.
+//    * `CmdArgsBase`
+//        - `ValueFlagList2Vec`        fold an `ArgValueFlagList<float>` into a
+//                                     `gdt::vec_t<T,N>` with per-component
+//                                     defaults.
+//        - `Items_Count` /
+//          `Items_SingleStringGetter` legacy ImGui combo helpers used to
+//                                     pretty-print the `--rendering-mode`
+//                                     enum help text.
+//        - `exec`                     run `parser.ParseCLI` with consistent
+//                                     exception handling.
+//
+//  No `main` lives here; each app embeds its own `CmdArgs : CmdArgsBase`
+//  subclass.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include <gdt/math/vec.h>

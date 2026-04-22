@@ -21,6 +21,17 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  renderer.cpp
+//
+//  Implements `RenderAPI::init`, `update`, and `render`. `init` allocates
+//  one-shot state (device volume, macrocell pointers, framebuffer
+//  accumulator); `update` is called per frame to push camera, transfer
+//  function, sampling rate, density scale, clipping box, and framebuffer
+//  size into `params`; `render` dispatches to either `program_raymarching`
+//  or `program_pathtracing` based on the requested `vnrRenderMode`.
+// ----------------------------------------------------------------------------
+
 #include "renderer.h"
 
 #include <iostream>
