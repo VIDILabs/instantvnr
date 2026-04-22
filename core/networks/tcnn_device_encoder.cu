@@ -1,3 +1,14 @@
+// ----------------------------------------------------------------------------
+//  tcnn_device_encoder.cu
+//
+//  Device-side definition of `encode(ctx, level, input, output)` for the
+//  hash-grid encoder declared in `tcnn_device_api.h`. Mirrors tiny-cuda-nn's
+//  `GridEncodingTemplated::encode`, specialized for the three-dimensional
+//  spatial inputs used by the volume network.
+//
+//  Only compiled when `ENABLE_IN_SHADER=1`.
+// ----------------------------------------------------------------------------
+
 #include "tcnn_device_api.h"
 
 /* namespace instant neural volume */

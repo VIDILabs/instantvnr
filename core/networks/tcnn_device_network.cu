@@ -6,6 +6,16 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  tcnn_device_network.cu
+//
+//  Device-side definitions for the fused encoder + MLP forward pass
+//  declared in `tcnn_device_api.h`. Combines `EncoderCtx` with the
+//  `threadblock_layer` helpers from `tcnn_threadblock.h` to implement
+//  `DeviceNeuralVolume::sample(pos)` used by the in-shader render modes.
+//  Only compiled when `ENABLE_IN_SHADER=1`.
+// ----------------------------------------------------------------------------
+
 #include "tcnn_network.h"
 
 #ifdef ENABLE_IN_SHADER

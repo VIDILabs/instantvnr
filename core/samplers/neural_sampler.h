@@ -1,3 +1,32 @@
+// ----------------------------------------------------------------------------
+//  neural_sampler.h
+//
+//  Concrete `SamplerAPI` variants used for training a neural volume:
+//
+//    DummySampler                      no data; placeholder used when the
+//                                      network is loaded from disk and no
+//                                      ground-truth is available.
+//    CudaSampler                       single-timestep CUDA 3D texture
+//                                      sampler (default GPU path).
+//    CudaSampler_TimeVarying           like `CudaSampler` but cycles
+//                                      through a list of timestep files.
+//    OpenVKLSampler (+GT variant)      OpenVKL-backed sampling; enabled
+//                                      when `ENABLE_OPENVKL`. The "GT"
+//                                      variant retains the dense grid so
+//                                      PSNR/SSIM remain meaningful.
+//    OutOfCoreSampler                  mmap + libaio streaming reader for
+//                                      volumes larger than GPU memory.
+//                                      Enabled when `ENABLE_OUT_OF_CORE`.
+//    VirtualMemorySampler              mmap + on-demand upload variant
+//                                      used when AIO is unavailable or the
+//                                      working set fits in host RAM.
+//
+//  The header also declares shared helpers: `load_regular_grid`,
+//  `normalize_regular_grid`, random-buffer utilities (`random_hbuffer_*`,
+//  `random_dbuffer_*`), and `generate_grid_coords` for building training
+//  batches on the GPU.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "../sampler.h"

@@ -1,3 +1,28 @@
+// ----------------------------------------------------------------------------
+//  sampler.h
+//
+//  `SamplerAPI`  - abstract host-side interface for every way the library
+//                  can read voxel values during training:
+//                    * sample()      draw a batch at arbitrary positions
+//                    * sample_grid() evaluate on a regular subgrid
+//                    * texture()     expose a CUDA texture of the source
+//                                    volume (when one exists)
+//                  Concrete implementations live under `core/samplers/`
+//                  (CudaSampler, OpenVKLSampler, OutOfCoreSampler, ...).
+//
+//  `SamplerAPI::create(desc, mode, save_volume)` is the string-dispatched
+//  factory wired into `api.cpp`. Supported `mode` strings: "GPU", "NOTHING",
+//  plus "VIRTUAL_MEMORY" / "OUT_OF_CORE" (ENABLE_OUT_OF_CORE) and several
+//  "OPENVKL*" variants (ENABLE_OPENVKL).
+//
+//  `SimpleVolume` is the ground-truth volume wrapper built on top of
+//  `SamplerAPI`. It owns the sampler, the CUDA volume texture, a
+//  `MacroCell` for empty-space skipping, and a per-volume
+//  `TransferFunctionObject`. It implements the `VolumeObject` interface
+//  from `instantvnr_types.h` so that simple and neural volumes are
+//  interchangeable at the renderer boundary.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "instantvnr_types.h"

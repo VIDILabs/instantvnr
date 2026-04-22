@@ -14,6 +14,18 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  device_nnvolume_array.cpp
+//
+//  TBB-parallel host-side min/max reductions and CUDA-array factories used
+//  to upload OVR scene arrays (scalar or float4) into CUDA textures. The
+//  3-D scalar path is the one `DeviceNNVolume::Impl::init` uses; the 1-D
+//  helpers are compiled in for completeness but not currently linked by
+//  any caller in this tree. The `TODO` near the bottom of the file flags
+//  the fact that 16/32-bit integer and double volumes are converted to
+//  float before upload.
+// ----------------------------------------------------------------------------
+
 #include "device_nnvolume_array.h"
 
 #include <tbb/blocked_range.h>

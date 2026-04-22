@@ -1,3 +1,18 @@
+// ----------------------------------------------------------------------------
+//  device.h
+//
+//  `DeviceNNVolume` - an OVR `MainRenderer` implementation that adapts the
+//  `instantvnr` rendering pipeline to hosts that load rendering backends
+//  dynamically (see `OVR_REGISTER_OBJECT(..., nnvolume)` in device.cpp).
+//
+//  Uses the pimpl idiom: the public class forwards every virtual override
+//  into `DeviceNNVolume::Impl` (defined in `device_impl.h`) which actually
+//  talks to `vnr::RenderAPI`.
+//
+//  Note: none of the binaries under `apps/` link this target; it is built
+//  so it can be loaded at runtime by an OVR host. See `device/CMakeLists.txt`.
+// ----------------------------------------------------------------------------
+
 #pragma once
 #ifndef OVR_NNVOLUME_DEVICE_H
 #define OVR_NNVOLUME_DEVICE_H

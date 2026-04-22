@@ -1,3 +1,12 @@
+// ----------------------------------------------------------------------------
+//  fvsrn_network.cu
+//
+//  Implementation of the fV-SRN backend declared in `fvsrn_network.h`.
+//  Uses the model definitions in `fvsrn/model_defs.inl` and the forward
+//  kernels in `fvsrn/fvsrn_forward.h` / `fvsrn/fvsrn_tensorcores_forward.h`.
+//  Only compiled when `ENABLE_FVSRN=1`.
+// ----------------------------------------------------------------------------
+
 #include <string>
 #include <vector>
 #include <random>

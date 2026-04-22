@@ -21,6 +21,29 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  int_volume.cpp  -->  binary `vnr_int_single`
+//
+//  Interactive single-pane viewer. Loads either a ground-truth volume
+//  (`--simple-volume`) or a pre-trained neural volume (`--neural-volume`)
+//  and renders it through `vnrRenderer`, with an ImGui transfer-function
+//  editor, rendering-mode selector, and save/load hooks for neural params.
+//
+//  CLI (via args.hxx):
+//    XOR    --simple-volume / --neural-volume <file>
+//    opt    --tfn <scene.json>              transfer function preset
+//    all|0  --camera-from / --camera-at / --camera-up
+//    opt    --rendering-mode, --sampling-rate, --density-scale
+//           --max-num-frames <int>          auto-exit after this many frames
+//           --force-camera                  do not override from the TFN file
+//           --report-rendering-fps
+//           -h, --help
+//
+//  Like `int_dual_volume`, rendering happens on a background thread
+//  (`vidi::AsyncLoop`) with `TransactionalValue<T>` used for parameter
+//  handoff between the GUI and render threads.
+// ----------------------------------------------------------------------------
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif

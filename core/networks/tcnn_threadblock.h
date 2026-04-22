@@ -1,3 +1,27 @@
+// ----------------------------------------------------------------------------
+//  tcnn_threadblock.h
+//
+//  Fused, block-level fully-fused MLP layers used by the in-shader TCNN
+//  inference path. Each `threadblock_layer<WIDTH, N_ITERS, ...>` call:
+//
+//    * Loads `N_BLOCKS = WIDTH / 16` half-precision weight tiles into WMMA
+//      `matrix_b` fragments (one per warp in the block).
+//    * Streams `N_ITERS` activation chunks from shared memory
+//      (`act_shmem`) through WMMA `matrix_a` / `accumulator` fragments.
+//    * Optionally applies the activation function per tile and writes the
+//      result back to shared memory, passing the baton to the next layer.
+//
+//  Constraints:
+//    * WIDTH must be a multiple of 16 (tensor-core tile size).
+//    * Block dim.x must be `32` (warp size) and dim.y must be `WIDTH / 16`.
+//    * Shared memory holds a skewed `WIDTH x batch` activation tile; the
+//      `SKEW` constant avoids bank conflicts when `WIDTH % 16 == 0`.
+//    * Requires `ENABLE_IN_SHADER=1` (pulled in via `tcnn_device_api.h`).
+//
+//  This header is included by `tcnn_device_network.cu` and by the
+//  rendering kernels that embed fused inference.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "tcnn_device_api.h"

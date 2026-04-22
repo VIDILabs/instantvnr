@@ -6,6 +6,26 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  network.cu
+//
+//  Implementation of `NeuralVolume` (pimpl). Two backends can be selected at
+//  build time:
+//
+//    * tiny-cuda-nn (default)  -- `networks/tcnn_network.h`. HashGrid
+//                                 encoding + fused MLP for fast training and
+//                                 fully-fused in-shader inference.
+//    * fV-SRN (`ENABLE_FVSRN`) -- `networks/fvsrn_network.h`. Requires
+//                                 `ADAPTIVE_SAMPLING=0`.
+//
+//  This file contains the training loop, progressive decode, SSIM kernel,
+//  parameter (de)serialization, and the glue that feeds coordinates through
+//  the chosen `AbstractNetwork`. `macrocell` state is either inherited from
+//  the reference `SimpleVolume` or rebuilt periodically from sampled
+//  inference so that empty-space skipping and delta-tracking majorants
+//  remain valid during training.
+// ----------------------------------------------------------------------------
+
 #include "network.h"
 #include "sampler.h"
 

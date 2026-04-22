@@ -1,3 +1,23 @@
+// ----------------------------------------------------------------------------
+//  macrocell.h
+//
+//  `MacroCell` - coarse GPU acceleration grid used for both ray-marched
+//  empty-space skipping and path-traced delta-tracking majorants. Each
+//  macrocell covers `1 << MACROCELL_SIZE_MIP` voxels along each axis and
+//  stores:
+//    * min/max scalar value        (`d_value_range()` -> vec2f per cell)
+//    * max opacity under the       (`d_max_opacity()` -> float per cell)
+//      current transfer function
+//
+//  The renderer consumes both arrays through `DeviceVolume`. `MacroCell`
+//  can be computed from a CUDA texture via `compute_everything()` (for
+//  ground-truth volumes) or accumulated explicitly from sampled values via
+//  `update_explicit()` (for neural volumes trained from scratch).
+//  `update_implicit()` is a reserved slot that is not yet implemented.
+//  `set_external()` lets a neural volume alias the macrocell of its
+//  reference simple volume (the `groundtruth_macrocell` training option).
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "instantvnr_types.h"

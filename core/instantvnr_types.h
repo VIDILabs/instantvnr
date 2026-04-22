@@ -1,3 +1,34 @@
+// ----------------------------------------------------------------------------
+//  instantvnr_types.h
+//
+//  Shared type layer used by every subsystem in `core/`. Splits cleanly
+//  into:
+//
+//    * Host-side scene types:
+//        `MultiVolume`, `TransferFunction`, `Camera`, `SciVisMaterial`
+//      These are populated from JSON by `serializer.*` and consumed by
+//      the higher-level pipeline (api.cpp, samplers, renderers).
+//
+//    * Device-side launch-parameter types (suffixed `Device*`):
+//        `DeviceVolume`, `DeviceTransferFunction`, `DeviceCamera`,
+//        `DeviceFrameBuffer`, `LaunchParams`
+//      These are plain-old-data blobs passed by value to CUDA kernels.
+//
+//    * Runtime objects (own GPU resources):
+//        `TransferFunctionObject`  owns the two cudaArrays backing
+//                                  `DeviceTransferFunction` and keeps them
+//                                  in sync with a host-side transfer
+//                                  function via `update()`.
+//        `VolumeObject`            abstract base implemented by
+//                                  `SimpleVolume` and `NeuralVolume`; gives
+//                                  the renderer a uniform way to query
+//                                  dims, type, range, transform, and
+//                                  macrocell state.
+//
+//  Also provides CUDA atomic helpers for `float` (`atomicMin`, `atomicMax`)
+//  and the `lerp`, `block_any` device utilities shared across kernels.
+// ----------------------------------------------------------------------------
+
 #ifndef INSTANT_VNR_TYPES_H
 #define INSTANT_VNR_TYPES_H
 

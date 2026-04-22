@@ -1,3 +1,19 @@
+// ----------------------------------------------------------------------------
+//  raytracing.h
+//
+//  Device-side ray/volume utilities shared by the ray-marching and
+//  path-tracing kernels:
+//
+//    * `_intersectBox`      ray/AABB intersection with safe handling of
+//                           near-zero direction components.
+//    * camera transforms    helpers that convert a `DeviceCamera` and a
+//                           pixel index into a primary ray.
+//    * `array1dNodal`       1-D texture fetch helper used for nodal
+//                           (non-cell-centered) transfer-function lookups.
+//
+//  All functions are `__device__ __forceinline__` and header-only.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "../instantvnr_types.h"

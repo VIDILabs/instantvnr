@@ -1,3 +1,13 @@
+// ----------------------------------------------------------------------------
+//  serializer.cpp
+//
+//  Implementation of the VIDI-format scene JSON loaders declared in
+//  `serializer.h`. Resolves `fileName` fallback arrays, parses data
+//  sources, value ranges (`scalarMappingRange` vs
+//  `scalarMappingRangeUnnormalized`), cameras, and transfer-function
+//  blobs via the `tfn` library.
+// ----------------------------------------------------------------------------
+
 #include "serializer.h"
 
 namespace tfn {

@@ -1,3 +1,17 @@
+// ----------------------------------------------------------------------------
+//  api_internal.h
+//
+//  Internal composition layer shared between `api.cpp` and the OVR plugin in
+//  `device/`. NOT installed; NOT part of the public ABI. Downstream consumers
+//  should include `api.h` instead.
+//
+//  This header stitches the public `vnr*` handle typedefs together with the
+//  concrete core types: a `VolumeContext` either wraps a `SimpleVolume`
+//  (ground-truth data on disk / in memory) or a `NeuralVolume` (tiny-cuda-nn
+//  or fV-SRN backed trainable representation), and a `RenderContext` ties a
+//  volume to its camera, transfer function, framebuffer, and active
+//  `vnrRenderMode`.
+// ----------------------------------------------------------------------------
 
 #pragma once
 

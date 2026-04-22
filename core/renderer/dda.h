@@ -1,5 +1,14 @@
 // credit to Ingo Wald
 
+// ----------------------------------------------------------------------------
+//  dda.h
+//
+//  3-D DDA (digital differential analyzer) grid traversal. `dda::DDAIter`
+//  walks a ray through a uniform voxel (or macrocell) grid one cell at a
+//  time so the renderer can skip empty macrocells, step through adaptive
+//  sampling regions, or accumulate along cells. Header-only.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "../instantvnr_types.h"

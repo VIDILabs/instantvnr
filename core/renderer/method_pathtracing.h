@@ -1,3 +1,12 @@
+// ----------------------------------------------------------------------------
+//  method_pathtracing.h
+//
+//  `MethodPathTracing` dispatcher. Volumetric path tracing with delta
+//  tracking / Russian roulette. Mirrors `MethodRayMarching`: the three
+//  neural-sampling flavors (decode / sample streaming / in-shader) line up
+//  with `vnrRenderMode` values 13-15.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "../instantvnr_types.h"

@@ -6,9 +6,25 @@
 //.                                                                          //
 //. ======================================================================== //
 
-/**
- * Geometry Types Defined by the Application
- */
+// ----------------------------------------------------------------------------
+//  array.h
+//
+//  Thin value-type wrappers around CUDA texture arrays:
+//    * `Array1D`          generic 1-D texture + raw pointer.
+//    * `Array1DScalar`    alias for 1-D scalar arrays.
+//    * `Array1DFloat4`    alias for 1-D float4 arrays (RGBA TFN colors).
+//    * `Array3DScalar`    3-D scalar volume texture (+ cached rdims).
+//
+//  Factory helpers allocate a `cudaArray_t`, create a linear-filtered
+//  `cudaTextureObject_t`, and optionally upload host data:
+//    * `CreateArray3DScalar<T>`
+//    * `CreateArray1DScalar<T>`
+//    * `CreateArray1DFloat4`
+//
+//  All allocations go through the `cudaTracked*` accounting helpers from
+//  OVR so `vnrMemoryQuery` can report peak usage.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include <cuda_runtime.h>

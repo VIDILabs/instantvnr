@@ -21,6 +21,19 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  device_impl.h
+//
+//  Pimpl implementation of `DeviceNNVolume`. `Impl::init` reads the OVR
+//  scene from `parent->current_scene`, uploads the structured-regular
+//  volume through `device_nnvolume_array.h` (`CreateArray3DScalarCUDA`),
+//  builds a `MacroCell` + `TransferFunctionAPI`, and initializes the
+//  owned `vnr::RenderAPI`. `Impl::commit` pulls updates from the OVR host
+//  (`fbsize`, camera, TFN, path-tracing toggle, sampling rate, density
+//  scale) via their transactional wrappers and reconfigures the render
+//  context accordingly.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "device.h"

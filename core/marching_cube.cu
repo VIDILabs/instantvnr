@@ -1,3 +1,27 @@
+// ----------------------------------------------------------------------------
+//  marching_cube.cu
+//
+//  GPU marching cubes implementation backing `vnrMarchingCube` in api.cpp.
+//  Works against two volume sources transparently:
+//
+//    * `SimpleVolume`  - sampled through the volume's CUDA texture.
+//    * `NeuralVolume`  - sampled by invoking the in-shader TCNN inference
+//                        path (requires `ENABLE_IN_SHADER`); see
+//                        `networks/tcnn_device_api.h`.
+//
+//  Pipeline:
+//    1. Launch one thread per source voxel; each thread reads the 8 voxel
+//       corners, looks up its triangle case in `MC_CASE_TABLE`, and writes
+//       the generated vertex count.
+//    2. CUB exclusive scan produces per-voxel write offsets.
+//    3. A second pass emits the triangle vertices directly into the output
+//       device buffer.
+//    4. Host bridge in api.cpp returns the triangle list as either a CUDA
+//       pointer (`output_to_cuda_memory = true`) or host pointer.
+//
+//  Only compiled when `ENABLE_IN_SHADER=1`.
+// ----------------------------------------------------------------------------
+
 #include "marching_cube_constants.cuh"
 
 #include <api.h>

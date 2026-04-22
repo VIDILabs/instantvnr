@@ -21,6 +21,40 @@
 //. limitations under the License.                                           //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  int_dual_volume.cpp  -->  binary `vnr_int_dual`
+//
+//  Interactive dual-pane viewer: the ground-truth volume is shown on the
+//  left and a neural volume trained in the background is shown on the right,
+//  sharing the same camera and transfer function. The GUI exposes rendering
+//  mode, pause/resume of the training / reference / inference threads,
+//  save-volume, save-params, PSNR/SSIM readouts, a loss plot, and a timestep
+//  slider for time-varying data.
+//
+//  CLI (hand-parsed from argv, NOT via `CmdArgs : CmdArgsBase`):
+//    --volume <file>           ground-truth scene JSON         (default "network.json")
+//    --network <file>          TCNN config                     (default "network.json")
+//    --resume  <file>          binary JSON of pre-trained weights
+//    --rendering-mode <int>
+//    --training-mode | --mode  sampling backend
+//    --max-frames <uint>       auto-exit after this many frames
+//    --max-steps  <uint>       auto-pause training after this many steps
+//    --pause-training / --pause-reference / --pause-inference
+//    --groundtruth-macrocell   disable online macrocell construction
+//    --save-reference-volume   persist the GT volume before training
+//    --report          <file>  CSV log target
+//    --report-macrocell-quality / --report-rendering-fps
+//    --camera-from / --camera-at / --camera-up  x y z
+//    --summary                 on exit: save final.jpg + params.json
+//    --fvsrn                   load model/config from binary JSON (fV-SRN)
+//    --quiet                   (parsed but unused; retained for compatibility)
+//
+//  Threading model: the `MainWindow` class owns an `AsyncLoop` that runs
+//  rendering + neural volume inference off the GUI thread. Parameters that
+//  can be touched from both threads go through `vidi::TransactionalValue<T>`
+//  so the update is lock-free on the hot path.
+// ----------------------------------------------------------------------------
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -1052,7 +1086,7 @@ main(int ac, char** av)
   // -------------------------------------------------------
   // initialize opengl window
   // -------------------------------------------------------
-  auto* window = new MainWindow(args, "Optix 7 Renderer", camera, worldScale);
+  auto* window = new MainWindow(args, "Instant VNR Dual View", camera, worldScale);
 
   auto t0 = std::chrono::high_resolution_clock::now();
 

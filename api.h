@@ -6,6 +6,38 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  api.h
+//
+//  Stable, C-style facade for the `instantvnr` shared library. Every example
+//  app in `apps/` and the OVR plugin in `device/` are written against *this*
+//  header only; the implementation details (CUDA kernels, tiny-cuda-nn,
+//  OpenVKL, ...) live behind the shared-pointer handles declared below.
+//
+//  Four conceptual objects are exposed:
+//    * `vnrCamera`           - perspective camera (eye/at/up).
+//    * `vnrVolume`           - either a ground-truth "simple" volume or a
+//                              trainable/inferable "neural" volume; the same
+//                              handle type is used for both, with a virtual
+//                              `isNetwork()` flag. See api_internal.h.
+//    * `vnrTransferFunction` - color + opacity + value range.
+//    * `vnrRenderer`         - render loop + framebuffer attached to one
+//                              `vnrVolume`.
+//
+//  Additional helpers:
+//    * `vnrRenderMode` enumerates every supported rendering strategy.
+//      `vnrRequireDecoding()` partitions those modes into "pre-decode the
+//      neural volume into a 3-D texture" vs "sample the network inside the
+//      ray-marching / path-tracing kernel" (sample-streaming / in-shader).
+//    * JSON I/O helpers load/save both the scene JSON (text) and the
+//      compact binary-JSON (`params.json`) used for trained weights.
+//    * Memory helpers (`vnrMemoryQuery`, `vnrFreeTemporaryGPUMemory`,
+//      `vnrCompilationStatus`) expose diagnostics useful from CLI tools.
+//
+//  This file is kept free of any core/ header beyond `core/mathdef.h` so it
+//  can be installed as the only public header consumers need.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 #include "core/mathdef.h"

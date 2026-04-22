@@ -1,3 +1,12 @@
+// ----------------------------------------------------------------------------
+//  marching_cube_constants.cuh
+//
+//  `MC_CASE_TABLE`: classic 256-entry marching-cubes triangle case table,
+//  stored in `__constant__` memory. Each row lists up to 16 edge indices
+//  (triples of three give one triangle; `-1` terminates). Consumed by
+//  `marching_cube.cu`.
+// ----------------------------------------------------------------------------
+
 #pragma once
 
 constexpr int32_t MC_NUM_CASES = 256;

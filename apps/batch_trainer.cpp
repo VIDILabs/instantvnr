@@ -6,6 +6,38 @@
 //.                                                                          //
 //. ======================================================================== //
 
+// ----------------------------------------------------------------------------
+//  batch_trainer.cpp  -->  binary `vnr_cmd_train`
+//
+//  Headless trainer. Loads a ground-truth `SimpleVolume` via
+//  `vnrCreateSimpleVolume(--volume, --training-mode)` and a tiny-cuda-nn
+//  network config via `vnrCreateJsonText(--network)`, trains the neural
+//  volume for up to `--max-num-steps` steps (in chunks of 10), logs the
+//  loss curve, and writes the resulting weights to `params.json` (binary
+//  JSON).
+//
+//  Safety net: if the training loss is still above 0.9 at step 5000 the
+//  program restarts training from scratch with fresh weights (occasionally
+//  TCNN falls into a bad initialization).
+//
+//  CLI (via args.hxx):
+//    --volume          <file>    ground-truth scene JSON         (default "network.json")
+//    --network         <file>    TCNN network/optimizer/loss JSON (default "network.json")
+//    --resume          <file>    binary JSON of previous weights to warm-start
+//    --max-num-steps   <int>     default 1000
+//    --training-mode  | --mode   sampling backend passed to `vnrCreateSimpleVolume`
+//                                 ("GPU" by default; OpenVKL / out-of-core names
+//                                  require the matching feature flag)
+//    --report          <file>    CSV log target (default "none")
+//    --train-macrocell           also fit the macrocell while training
+//    --quiet                     suppress the progress bar
+//    -h, --help
+//
+//  The commented-out `DataDesc` / `VolumeDesc_Structured` / `dvnrLoadData`
+//  block below is a historical alternative loader kept for reference; the
+//  active path goes through `vnrCreateSimpleVolume`.
+// ----------------------------------------------------------------------------
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -57,7 +89,7 @@ public:
     , m_volume(parser, "filename", "the ground truth volume", {"volume"})
     , m_config(parser, "filename", "the neural network model configuration", {"network"})
     , m_resume(parser, "filename", "the pre-trained neural network", {"resume"})
-    , m_report(parser, "filename", "creating a trainning log file", {"report"})
+    , m_report(parser, "filename", "creating a training log file", {"report"})
     , m_max_num_steps(parser, "int", "maximum number of training steps", {"max-num-steps"})
     , m_training_mode(parser, "string", "the data sampling mode", { "training-mode", "mode" })
     , quiet(parser, "flag", "quiet mode", {"quiet"})
@@ -138,8 +170,6 @@ void dvnrLoadData(VolumeDesc_Structured& desc)
   vidi::read_volume_structured_regular(desc.filename, volume_desc, dst);
 }
 
-/*! main entry point to this example - initially optix, print hello
-  world, then exit */
 extern "C" int
 main(int ac, char** av)
 {

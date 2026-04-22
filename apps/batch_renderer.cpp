@@ -5,6 +5,36 @@
 //. Licensed under the MIT License                                           //
 //.                                                                          //
 //. ======================================================================== //
+
+// ----------------------------------------------------------------------------
+//  batch_renderer.cpp  -->  binary `vnr_cmd_render`
+//
+//  Headless timing / benchmarking renderer. Produces:
+//    * `<exp>-screenshot.jpg`   last frame, 768x768.
+//    * `<exp>.csv`              per-frame `(frame_idx, frame_time_s, fps)`
+//                               written by `vidi::CsvLogger`.
+//    * stdout summary with average FPS and peak GPU memory.
+//
+//  After five warm-up renders, `args.num_frames()` frames are timed.
+//
+//  CLI (via args.hxx):
+//    XOR    --simple-volume  <file>
+//           --neural-volume  <file>
+//    REQ    --tfn            <scene.json>    transfer function source
+//           --num-frames     <int>
+//    all|0  --camera-from / --camera-at / --camera-up  <(x,y,z)>
+//           (parsed but NOT applied to the camera - the pose comes from the
+//            `--tfn` scene; leave unset unless the code is patched)
+//    opt    --rendering-mode <int in 0..15>     (default 0)
+//           --sampling-rate  <float>            (default 1.0)
+//           --density-scale  <float>            (default 1.0)
+//           --exp            <string>           experiment name, default "output"
+//           -h, --help
+//
+//  The rendering-mode enum is defined in api.h (`vnrRenderMode`); see the
+//  help text printed by `--help` for the human-readable list.
+// ----------------------------------------------------------------------------
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -151,8 +181,6 @@ void saveJPG(const std::string &fname, vec2i size, const vec4f* pixels)
 
 // make -j && CUDA_VISIBLE_DEVICES=1 ./vnr_batch_renderer --resume model.json --network ../scripts/network.json --volume ./generated_heatrelease_1atm_camera_adjusted.json --camera-from -0.5 -1091.68 0 --camera-at -0.5 0 0 --camera-up  0.00151751 0 0.999999
 
-/*! main entry point to this example - initially optix, print hello
-  world, then exit */
 extern "C" int
 main(int ac, char** av)
 {

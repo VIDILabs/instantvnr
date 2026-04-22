@@ -1,3 +1,24 @@
+// ----------------------------------------------------------------------------
+//  macrocell.cu
+//
+//  CUDA kernels and host bookkeeping for `MacroCell`. Three update modes:
+//
+//    * `compute_everything(tex)`           single pass over the volume
+//                                          texture that atomically reduces
+//                                          min/max into every macrocell
+//                                          that contains a voxel.
+//    * `update_explicit(coords, values)`   per-sample reduction used while
+//                                          training a neural volume from
+//                                          scratch (when no reference
+//                                          texture exists).
+//    * `update_max_opacity(tfn)`           re-runs the `max` of sampled
+//                                          opacity over each macrocell's
+//                                          value range whenever the
+//                                          transfer function changes.
+//
+//  Macrocell edge length is `1 << MACROCELL_SIZE_MIP` (see CMake).
+// ----------------------------------------------------------------------------
+
 #include "macrocell.h"
 
 #ifndef MACROCELL_SIZE_MIP
