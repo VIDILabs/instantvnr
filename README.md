@@ -1,5 +1,10 @@
 # Interactive Volume Visualization Via Multi-Resolution Hash Encoding Based Neural Representation
 
+[![Docker Image CI](https://github.com/VIDILabs/instantvnr/actions/workflows/docker-image.yml/badge.svg?branch=public)](https://github.com/VIDILabs/instantvnr/actions/workflows/docker-image.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![arXiv](https://img.shields.io/badge/arXiv-2207.11620-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2207.11620)
+[![DOI](https://img.shields.io/badge/DOI-10.1109%2FTVCG.2023.3293121-blue.svg)](https://doi.org/10.1109/TVCG.2023.3293121)
+
 ### Qi Wu, David Bauer, Michael J. Doyle, and Kwan-Liu Ma
 
 Published in: IEEE Transactions on Visualization and Computer Graphics.
@@ -225,6 +230,10 @@ banner printed by each app) for a runtime dump of the active flags.
 
 ### Citation
 
+If you use this software, please cite the accompanying paper. Machine-readable
+metadata is provided in [`CITATION.cff`](CITATION.cff); a BibTeX entry for
+LaTeX users is below.
+
 ```bibtex
 @article{wu2022instant,
   author={Wu, Qi and Bauer, David and Doyle, Michael J. and Ma, Kwan-Liu},
@@ -237,3 +246,9 @@ banner printed by each app) for a runtime dump of the active flags.
   doi={10.1109/TVCG.2023.3293121}
 }
 ```
+
+### License & Third-Party Notices
+
+`instantvnr` is released under the [MIT License](LICENSE). The project bundles
+and links against several third-party components, each under its own license;
+see [`NOTICE`](NOTICE) for the full inventory.

@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: >-
+  Interactive Volume Visualization Via Multi-Resolution Hash Encoding
+  Based Neural Representation
+message: >-
+  If you use this software, please cite the accompanying paper using
+  the metadata below.
+type: software
+authors:
+  - given-names: Qi
+    family-names: Wu
+  - given-names: David
+    family-names: Bauer
+  - given-names: Michael J.
+    family-names: Doyle
+  - given-names: Kwan-Liu
+    family-names: Ma
+repository-code: 'https://github.com/VIDILabs/instantvnr'
+url: 'https://wilsoncernwq.github.io/publication/tvcg2022-instant-vnr'
+license: MIT
+keywords:
+  - neural representation
+  - volume visualization
+  - hash encoding
+  - real-time rendering
+  - CUDA
+preferred-citation:
+  type: article
+  title: >-
+    Interactive Volume Visualization Via Multi-Resolution Hash Encoding
+    Based Neural Representation
+  authors:
+    - given-names: Qi
+      family-names: Wu
+    - given-names: David
+      family-names: Bauer
+    - given-names: Michael J.
+      family-names: Doyle
+    - given-names: Kwan-Liu
+      family-names: Ma
+  journal: 'IEEE Transactions on Visualization and Computer Graphics'
+  year: 2023
+  doi: '10.1109/TVCG.2023.3293121'
+  url: 'https://ieeexplore.ieee.org/document/10175377'

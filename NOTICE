@@ -1,0 +1,136 @@
+instantvnr
+Copyright (c) 2022-2023 Qi Wu
+
+Licensed under the MIT License (see LICENSE).
+
+This product bundles, vendors, or links against the third-party
+components listed below. Each is provided under its own license; the
+upstream LICENSE files (paths shown below where a copy ships in this
+tree) are authoritative and prevail over this summary.
+
+================================================================================
+Submodules
+================================================================================
+
+  tiny-cuda-nn -- NVIDIA Corporation
+    License : BSD-3-Clause
+    Source  : https://github.com/NVlabs/tiny-cuda-nn
+    In tree : tcnn/LICENSE.txt
+
+  open-volume-renderer (OVR) -- VIDI Labs, UC Davis
+    License : Apache-2.0
+    Source  : https://github.com/VIDILabs/open-volume-renderer
+    In tree : base/LICENSE
+
+================================================================================
+Bundled inside tcnn/dependencies/
+================================================================================
+
+  CUTLASS -- NVIDIA Corporation
+    License : BSD-3-Clause
+    Source  : https://github.com/NVIDIA/cutlass
+
+  {fmt} -- Victor Zverovich
+    License : MIT (with optional binary-form Apache-2.0)
+    Source  : https://github.com/fmtlib/fmt
+
+  nlohmann/json -- Niels Lohmann
+    License : MIT
+    Source  : https://github.com/nlohmann/json
+
+  PCG32 -- Wenzel Jakob (algorithm: M. E. O'Neill)
+    License : Apache-2.0
+    Source  : https://github.com/wjakob/pcg32
+
+  pybind11_json -- QuantStack
+    License : BSD-3-Clause
+    Source  : https://github.com/pybind/pybind11_json
+
+  stb_image / stb_image_write -- Sean Barrett
+    License : MIT / Public domain (dual)
+    Source  : https://github.com/nothings/stb
+
+  cuda-cmake-github-actions -- Peter Heywood
+    License : MIT
+    Source  : https://github.com/ptheywood/cuda-cmake-github-actions
+
+================================================================================
+Bundled inside base/extern/
+================================================================================
+
+  GLAD -- David Herberth
+    License : MIT (generator) / Public domain (output)
+    Source  : https://github.com/Dav1dde/glad
+
+  GLFW -- Marcus Geelnard, Camilla Loewy
+    License : zlib/libpng
+    Source  : https://github.com/glfw/glfw
+
+  Dear ImGui -- Omar Cornut
+    License : MIT
+    Source  : https://github.com/ocornut/imgui
+
+  nlohmann/json -- Niels Lohmann
+    License : MIT
+    Source  : https://github.com/nlohmann/json
+
+  Intel OpenVKL (optional, fetched on demand)
+    License : Apache-2.0
+    Source  : https://github.com/RenderKit/openvkl
+
+  tinyexr -- Syoyo Fujita; bundles miniz -- RAD Game Tools / Valve
+    License : BSD-3-Clause; miniz: MIT
+    Source  : https://github.com/syoyo/tinyexr
+
+  tinygltf -- Syoyo Fujita
+    License : MIT
+    Source  : https://github.com/syoyo/tinygltf
+
+  tinyobjloader -- Syoyo Fujita
+    License : MIT
+    Source  : https://github.com/tinyobjloader/tinyobjloader
+
+  stb_image / stb_image_write -- Sean Barrett
+    License : MIT / Public domain (dual)
+    Source  : https://github.com/nothings/stb
+
+  PLY (Stanford) -- Greg Turk / Stanford CGL
+    License : Stanford PLY (permissive academic notice)
+    In tree : base/extern/ply/ply.h (notice at top of file)
+
+  GDT (math) -- Ingo Wald (included via OVR)
+    License : Apache-2.0
+    Source  : https://github.com/ingowald/gdt
+
+  Transfer Function module (tfn) -- VIDI Labs, UC Davis
+    License : Apache-2.0 (covered by OVR)
+    In tree : base/LICENSE
+
+================================================================================
+Linked at build / run time (not redistributed)
+================================================================================
+
+  NVIDIA CUDA Toolkit
+    License : NVIDIA Software License Agreement
+    Notes   : Required at build and run time.
+    Source  : https://developer.nvidia.com/cuda-toolkit
+
+  Intel oneTBB
+    License : Apache-2.0
+    Notes   : Required by OVR.
+    Source  : https://github.com/uxlfoundation/oneTBB
+
+  OpenGL / GLU
+    License : Vendor-specific
+    Notes   : Used by interactive viewers when ENABLE_OPENGL=ON.
+
+  libaio
+    License : LGPL-2.1
+    Notes   : Linux only, used when ENABLE_OUT_OF_CORE=ON.
+    Source  : https://pagure.io/libaio
+
+================================================================================
+
+If you redistribute instantvnr -- in source or binary form, including via
+the provided Docker image -- please retain the copyright notices and
+license texts shipped in this tree.
