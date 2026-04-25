@@ -155,3 +155,5 @@ imgui.ini
 # for sharing test ckpt file
 !SIREN_shadow_test/sample_siren_1499_validation.pt
 SIREN_shadow_test/*.bson
+
+install/
